@@ -1,0 +1,93 @@
+generator client {
+  provider = "prisma-client-js" 
+  output   = "../generated/prisma"
+}
+
+datasource db {
+  provider  = "postgresql"
+  
+}
+
+// --- 1. USERS TABLE ---
+model User {
+  id           String   @id @default(uuid())
+  email        String   @unique
+  username     String   @unique
+
+  // Flattened authentication fields
+  password     String
+  salt         String
+  sessionToken String? 
+  refreshToken String? 
+
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt 
+
+  // Relations
+  submissions  Submission[]
+}
+
+// --- 2. PROBLEMS TABLE (Normalized Core) ---
+model Problem {
+  id                 String            @id // e.g., "two-sum"
+  title              String
+  description        String            @db.Text
+  difficulty         Difficulty        @default(EASY)
+  
+  // Separated Test Cases
+  publicTestCases    Json         
+  privateTestCases   Json         
+  
+  createdAt          DateTime          @default(now())
+  updatedAt          DateTime          @updatedAt
+
+  // Relations
+  submissions        Submission[] 
+  languageConfigs    ProblemLanguage[] // NEW: Links to the language configs!
+}
+
+// --- 3. PROBLEM LANGUAGE CONFIGS (The BCNF Fix) ---
+model ProblemLanguage {
+  id              String   @id @default(uuid())
+  problemId       String
+  language        String   // e.g., "cpp", "python"
+  
+  boilerplate     String   @db.Text
+  timeLimitMs     Int      
+  memoryLimitMb   Int      
+
+  problem         Problem  @relation(fields: [problemId], references: [id], onDelete: Cascade)
+
+  // A problem can only have ONE config per language
+  @@unique([problemId, language]) 
+}
+
+// --- 4. SUBMISSIONS TABLE (The Ledger) ---
+model Submission {
+  id                String   @id @default(uuid())
+  userId            String
+  problemId         String
+  language          String
+  code              String   @db.Text
+  status            String   
+  
+  // Granular Grading Results
+  errorMessage      String?  @db.Text 
+  executionTimeMs   Int?     
+  memoryUsedKb      Int?     
+  testCasesPassed   Int?     
+  totalTestCases    Int?     
+  
+  createdAt         DateTime @default(now())
+
+  // Relations
+  user              User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  problem           Problem  @relation(fields: [problemId], references: [id], onDelete: Cascade)
+}
+
+// --- 5. ENUMS ---
+enum Difficulty {
+  EASY
+  MEDIUM
+  HARD
+}
