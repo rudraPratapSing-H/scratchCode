@@ -1,27 +1,65 @@
-export const evaluateOutput = (rawOutput: string) => {
-    // Clean up whitespace and split by our invisible separator
-    const userAnswers = rawOutput.trim().split("|||---|||").map(ans => ans.trim());
-    
-    // Hardcoded expected answers for "Two Sum"
-    const expectedAnswers = ["[0, 1]", "[1, 2]"];
-    
-    let allPassed = true;
-    let results = [];
+type PublicCaseDetail = {
+    testCase: number;
+    testCaseData: any;
+    input: any;
+    output: string;
+    expectedOutput: string;
+    passed: boolean;
+};
 
-    for (let i = 0; i < expectedAnswers.length; i++) {
-        const expected = expectedAnswers[i];
-        const actual = userAnswers[i] || "No Output";
+type GradingResult = {
+    status: string;
+    details?: PublicCaseDetail[];
+};
 
-        if (actual === expected) {
-            results.push({ testCase: i + 1, status: "Pass" });
-        } else {
-            allPassed = false;
-            results.push({ testCase: i + 1, status: "Fail", expected, actual });
+export const GradingService = {
+    evaluateOutput(actualOutput: string, testCases: any[], isPublicTestCase: boolean = false): GradingResult {
+        // Split Docker's stdout by newline (ignores empty lines at the very end)
+        const userAnswers = actualOutput.trim().split('\n');
+        const publicDetails: PublicCaseDetail[] = [];
+
+        // Loop through the JSONB test cases from the database
+        for (let i = 0; i < testCases.length; i++) {
+            const expected = String(testCases[i].expectedOutput).trim();
+            const actual = userAnswers[i] === undefined ? '' : String(userAnswers[i]).trim();
+            const passed = userAnswers[i] !== undefined && actual === expected;
+
+            if (isPublicTestCase) {
+                publicDetails.push({
+                    testCase: i + 1,
+                    testCaseData: testCases[i],
+                    input: testCases[i]?.input,
+                    output: actual,
+                    expectedOutput: expected,
+                    passed
+                });
+            }
+
+            // Handle cases where the user's code crashed before finishing all tests
+            if (userAnswers[i] === undefined) {
+                return {
+                    status: `Wrong Answer on Test Case ${i + 1}`,
+                    details: isPublicTestCase ? publicDetails : undefined
+                };
+            }
+
+            if (!passed) {
+                return {
+                    status: `Wrong Answer on Test Case ${i + 1} \n(Expected: ${expected}, Got: ${actual})`,
+                    details: isPublicTestCase ? publicDetails : undefined
+                };
+            }
         }
-    }
 
-    return {
-        status: allPassed ? "Accepted" : "Wrong Answer",
-        results
-    };
+        return {
+            status: 'Accepted',
+            details: isPublicTestCase ? publicDetails : undefined
+        };
+    },
+
+    mapSystemError(errorMessage: string): string {
+        if (errorMessage === "Time Limit Exceeded") return "Time Limit Exceeded";
+        if (errorMessage.includes("Killed") || errorMessage.includes("OOM")) return "Memory Limit Exceeded";
+        return "Runtime Error"; 
+    }
 };

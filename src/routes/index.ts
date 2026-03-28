@@ -1,14 +1,16 @@
 import express from 'express';
 
-import { handleSubmission } from '../controllers/mainWorker.ts';
+import { SubmissionController } from '../controllers/submission.controller.ts';
 import { addProblem } from '../controllers/problem.controller.ts';
 import { AuthController } from '../controllers/auth.controller.ts';
+import { requireAuth } from '../middlewares/requireAuth.ts';
 const router = express.Router();
 
 export const setupRoutes = () => {
-    router.post('/execute', handleSubmission);
+    router.post('/execute', requireAuth, SubmissionController.submitCode);
+    router.post('/execute-public', requireAuth, SubmissionController.runPublicCode);
     router.post('/addProblem', addProblem);
     router.post('/register', AuthController.register);
-
+    router.get('/status/:id', SubmissionController.getStatus);
     return router;
 };

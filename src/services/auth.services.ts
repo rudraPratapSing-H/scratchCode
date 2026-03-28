@@ -40,5 +40,29 @@ export const AuthService = {
         });
 
         return { user, accessToken, refreshToken };
+    },
+
+    async refreshSession(refreshToken: string) {
+        const decoded: any = JwtUtil.verifyToken(refreshToken);
+        const userId = decoded?.userId;
+        if (!userId) throw new Error("Invalid refresh token.");
+
+        const user = await prisma.user.findUnique({ where: { id: userId } });
+        if (!user || !user.refreshToken) throw new Error("Invalid refresh token.");
+
+        // Safety check: incoming refresh token must match DB value.
+        if (user.refreshToken !== refreshToken) {
+            throw new Error("Refresh token mismatch.");
+        }
+
+        const newAccessToken = JwtUtil.generateToken({ userId: user.id }, '15m');
+        const newRefreshToken = JwtUtil.generateToken({ userId: user.id }, '7d');
+
+        await prisma.user.update({
+            where: { id: user.id },
+            data: { refreshToken: newRefreshToken }
+        });
+
+        return { userId: user.id, accessToken: newAccessToken, refreshToken: newRefreshToken };
     }
 };

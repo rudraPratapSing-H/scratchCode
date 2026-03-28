@@ -1,14 +1,19 @@
 import express from 'express';
 import cors from 'cors';
+import cookieParser from 'cookie-parser';
 import http from 'http';
 import { setupRoutes } from './routes/index.ts';
 import { authRoutes } from './routes/auth.route.ts';
 
 const app: any = express();
 
-app.use(cors());
+app.use(cors({
+    origin: process.env.FRONTEND_URL || 'http://localhost:8000',
+    credentials: true
+}));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
+app.use(cookieParser());
 
 const server = http.createServer(app);
 const port = Number(process.env.PORT) || 8000;
