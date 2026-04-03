@@ -14,10 +14,6 @@ export async function requireAuth(req: Request, res: Response, next: NextFunctio
         accessToken = authHeader.slice(7).trim();
     }
 
-    if (!accessToken && (req.cookies as any)?.accessToken) {
-        accessToken = (req.cookies as any).accessToken;
-    }
-
     if (accessToken) {
         try {
             const decoded: any = JwtUtil.verifyToken(accessToken);
@@ -31,19 +27,19 @@ export async function requireAuth(req: Request, res: Response, next: NextFunctio
     }
 
     const refreshToken = (req.cookies as any)?.refreshToken;
+    console.log("refreshToken from cookie:", refreshToken);
     if (!refreshToken) {
-        return res.status(401).json({ success: false, message: "Unauthorized" });
+        return res.status(401).json({ success: false, message: "Unauthorized No refresh token" });
     }
 
     try {
-        const refreshed = await AuthService.refreshSession(refreshToken);
+        const decodedRefresh: any = JwtUtil.verifyToken(refreshToken);
+        const generatedAt = decodedRefresh?.generatedAt || 0;
+        const now = Date.now();
+        // pseudo-idempotency: skip rotation if token was created less than 15 seconds ago
+        const shouldRotate = (now - generatedAt) > 15000;
 
-        res.cookie('accessToken', refreshed.accessToken, {
-            httpOnly: true,
-            secure: process.env.NODE_ENV === 'production',
-            sameSite: 'strict',
-            maxAge: 15 * 60 * 1000
-        });
+        const refreshed = await AuthService.refreshSession(refreshToken, shouldRotate);
 
         res.cookie('refreshToken', refreshed.refreshToken, {
             httpOnly: true,
@@ -52,12 +48,16 @@ export async function requireAuth(req: Request, res: Response, next: NextFunctio
             maxAge: 7 * 24 * 60 * 60 * 1000
         });
 
+        // Expose the newly refreshed access token to the frontend via a custom header
+        res.setHeader('x-new-access-token', refreshed.accessToken);
+        // Ensure CORS exposes the custom header so the frontend can read it!
+        res.setHeader('Access-Control-Expose-Headers', 'x-new-access-token');
+
         (req as any).user = { id: refreshed.userId };
         return next();
     } catch (error: any) {
         console.error("Auth Refresh Error:", error.message);
-        res.clearCookie('accessToken');
-        res.clearCookie('refreshToken');
+        
         return res.status(401).json({ success: false, message: "Unauthorized" });
     }
 }

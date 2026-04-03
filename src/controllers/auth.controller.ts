@@ -5,41 +5,51 @@ type Request = express.Request;
 type Response = express.Response;
 
 export const AuthController = {
-    
-   // 1. REGISTER (Now with Auto-Login!)
+   // for autologin if valid refresh token exists, otherwise behaves like a normal login
+//    async autoLogin(req: Request, res: Response) {
+        
+    // 1. REGISTER (Starts the OTP flow)
     async register(req: Request, res: Response) {
         try {
-            const { email, password } = req.body;
+            const { email } = req.body;
             console.log("Registering user with email:", email);
-            // 1. Create the user in the database
-            await AuthService.registerUser(req.body);
-            console.log("User registered successfully. Proceeding to login...");
             
-            // 2. Immediately log them in using the exact same credentials!
-            const { user, accessToken, refreshToken } = await AuthService.loginUser(email, password);
-            console.log("User logged in successfully after registration. Baking cookies...");
-
-            // 3. Bake the Access Token Cookie (15 Minutes)
-            res.cookie('accessToken', accessToken, {
-                httpOnly: true,
-                secure: process.env.NODE_ENV === 'production',
-                sameSite: 'strict',
-                maxAge: 15 * 60 * 1000
+            // Call the service: this now generates an OTP and saves to Redis, NOT Postgres.
+            const response = await AuthService.registerUser(req.body);
+            
+            // Return the prompt to check email for OTP
+            res.status(200).json({ 
+                success: true, 
+                message: response.message
             });
 
-            // 4. Bake the Refresh Token Cookie (7 Days)
+        } catch (error: any) {
+            res.status(400).json({ success: false, message: error.message });
+        }
+    },
+    
+    // 1.5 VERIFY EMAIL (Completes registration & logs in)
+    async verifyEmail(req: Request, res: Response) {
+        try {
+            const { email, otp } = req.body;
+            
+            // Verify OTP and create the user in Postgres.
+            // This now returns the user and generated tokens!
+            const { user, accessToken, refreshToken } = await AuthService.verifyEmail(email, otp);
+            
+            // Bake the Refresh Token Cookie
             res.cookie('refreshToken', refreshToken, {
                 httpOnly: true,
                 secure: process.env.NODE_ENV === 'production',
                 sameSite: 'strict',
-                maxAge: 7 * 24 * 60 * 60 * 1000
+                maxAge: 7 * 24 * 60 * 60 * 1000 // 7 days
             });
 
-            // 5. Send back the 201 Created with the user state for React
-            res.status(201).json({ 
-                success: true, 
-                message: "User registered and logged in successfully!",
-                user: { id: user.id, username: user.username, email: user.email }
+            res.status(201).json({
+                success: true,
+                message: "Email verified and user registered successfully!",
+                user: { id: user.id, username: user.username, email: user.email },
+                accessToken
             });
 
         } catch (error: any) {
@@ -54,14 +64,6 @@ export const AuthController = {
             // Ask the Service to verify credentials and generate tokens
             const { user, accessToken, refreshToken } = await AuthService.loginUser(email, password);
 
-            // 🍪 Bake the Access Token Cookie (15 Minutes)
-            res.cookie('accessToken', accessToken, {
-                httpOnly: true, // JavaScript CANNOT read this (Defeats XSS)
-                secure: process.env.NODE_ENV === 'production', // Only send over HTTPS in production
-                sameSite: 'strict', // Defeats CSRF attacks
-                maxAge: 15 * 60 * 1000 // 15 minutes in milliseconds
-            });
-
             // 🍪 Bake the Refresh Token Cookie (7 Days)
             res.cookie('refreshToken', refreshToken, {
                 httpOnly: true,
@@ -70,10 +72,11 @@ export const AuthController = {
                 maxAge: 7 * 24 * 60 * 60 * 1000 // 7 days in milliseconds
             });
 
-            // Send back standard user data for the React frontend state (NO TOKENS IN THE BODY!)
+            // Send back standard user data for the React frontend state and the access token
             res.status(200).json({
                 success: true,
-                user: { id: user.id, username: user.username, email: user.email }
+                user: { id: user.id, username: user.username, email: user.email },
+                accessToken
             });
         } catch (error: any) {
             res.status(401).json({ success: false, message: error.message });
@@ -83,9 +86,32 @@ export const AuthController = {
     // 3. LOGOUT (The Kill Switch)
     async logout(req: Request, res: Response) {
         // Clear the cookies from the browser
-        res.clearCookie('accessToken');
         res.clearCookie('refreshToken');
         
-        res.status(200).json({ success: true, message: "Logged out successfully." });
+        res.status(200).json({ success: true, message: "Logged out successfully." }); },
+        
+    // 4. ME (Auto-Login / Session Check)
+    async me(req: Request, res: Response) {
+        try {
+            // Re-fetch the verified user's data from the DB so you can return it.
+            // Note: Since this endpoint is protected by the requireAuth middleware,
+            // req.user has already been set and validated!
+            const userId = (req as any).user.id;
+            
+            // Assume we have a method to fetch a user by ID in AuthService
+            const user = await AuthService.getUserById(userId);
+
+            if (!user) {
+                res.status(404).json({ success: false, message: "User not found" });
+                return;
+            }
+
+            res.status(200).json({
+                success: true,
+                user: { id: user.id, username: user.username, email: user.email }
+            });
+        } catch (error: any) {
+            res.status(401).json({ success: false, message: error.message });
+        }
     }
 };

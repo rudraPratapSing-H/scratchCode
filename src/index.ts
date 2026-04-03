@@ -4,12 +4,15 @@ import cookieParser from 'cookie-parser';
 import http from 'http';
 import { setupRoutes } from './routes/index.ts';
 import { authRoutes } from './routes/auth.route.ts';
+import { requireAuth } from './middlewares/requireAuth.ts';
 
 const app: any = express();
 
 app.use(cors({
-    origin: process.env.FRONTEND_URL || 'http://localhost:8000',
-    credentials: true
+    origin: 'http://localhost:5173', // Only allow your Vite frontend
+    credentials: true,               // CRITICAL: Allows cookies/tokens to be sent back and forth
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization']
 }));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
