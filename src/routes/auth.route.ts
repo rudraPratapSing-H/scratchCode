@@ -6,6 +6,7 @@ const router = express.Router();
 export const authRoutes = () => {
     router.post('/register', AuthController.register);
     router.post('/verify-email', AuthController.verifyEmail);
+    router.post('/resend-otp', AuthController.resendOtp);
     router.post('/login', AuthController.login);
     router.post('/logout', AuthController.logout);
     

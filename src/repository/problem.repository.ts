@@ -23,4 +23,15 @@ export const ProblemRepository = {
             }
         });
     }
+
+    ,
+
+    async findProblemById(problemId: string) {
+        return await prisma.problem.findUnique({
+            where: { id: problemId },
+            include: {
+                languageConfigs: true
+            }
+        });
+    }
 };

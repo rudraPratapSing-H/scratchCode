@@ -14,7 +14,7 @@ export const WorkerService = {
 
         if (!submission) throw new Error("Submission not found.");
 
-        // 2. Find the specific language config (memory limits, time limits, boilerplate)
+        // 2. Find the specific language config (memory limits, time limits, starter/driver code)
         const langConfig = submission.problem.languageConfigs.find(
             (c: any) => String(c.language).toLowerCase() === String(submission.language).toLowerCase()
         );

@@ -18,3 +18,16 @@ export const createNewProblem = async (data: any) => {
         data.languageConfigs
     );
 };
+
+export const getProblemById = async (problemId: string) => {
+    if (!problemId) {
+        throw new Error('Problem ID is required.');
+    }
+
+    const problem = await ProblemRepository.findProblemById(problemId);
+    if (!problem) {
+        throw new Error('Problem not found.');
+    }
+
+    return problem;
+};

@@ -29,11 +29,16 @@ export async function requireAuth(req: Request, res: Response, next: NextFunctio
     const refreshToken = (req.cookies as any)?.refreshToken;
     console.log("refreshToken from cookie:", refreshToken);
     if (!refreshToken) {
-        return res.status(401).json({ success: false, message: "Unauthorized No refresh token" });
+        return res.status(401).json({ success: false, message: "Unauthorized No refresh token!!!" });
     }
 
     try {
         const decodedRefresh: any = JwtUtil.verifyToken(refreshToken);
+        const refreshUserId = decodedRefresh?.userId;
+        if (!refreshUserId) {
+            return res.status(401).json({ success: false, message: "Unauthorized invalid refresh payload" });
+        }
+
         const generatedAt = decodedRefresh?.generatedAt || 0;
         const now = Date.now();
         // pseudo-idempotency: skip rotation if token was created less than 15 seconds ago
@@ -53,11 +58,11 @@ export async function requireAuth(req: Request, res: Response, next: NextFunctio
         // Ensure CORS exposes the custom header so the frontend can read it!
         res.setHeader('Access-Control-Expose-Headers', 'x-new-access-token');
 
-        (req as any).user = { id: refreshed.userId };
+        (req as any).user = { id: refreshUserId };
         return next();
     } catch (error: any) {
         console.error("Auth Refresh Error:", error.message);
         
-        return res.status(401).json({ success: false, message: "Unauthorized" });
+        return res.status(401).json({ success: false, message: "Unauthorized, i am the culprit" });
     }
 }

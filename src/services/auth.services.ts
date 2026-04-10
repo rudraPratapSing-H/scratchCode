@@ -5,6 +5,7 @@ import { JwtUtil } from '../utils/jwt.utils.ts';
 import { redisClient } from '../config/redis.ts'; 
 import { EmailUtil } from '../utils/email.util.ts';
 
+
 export const AuthService = {
     // ------------------------------------------------------------------------
     // 1. THE WAITING ROOM (Registration)
@@ -22,7 +23,7 @@ export const AuthService = {
         const { hash, salt } = await HashUtil.hashPassword(password);
 
         // 3. Generate OTP & Create the Pending Package
-        const otp = Math.floor(100000 + Math.random() * 900000).toString();
+        const otp = EmailUtil.generateOTP();
         const pendingUser = { email, username, hash, salt, otp };
 
         // 4. Save to Redis with a 10-minute TTL (600 seconds)
@@ -38,6 +39,28 @@ export const AuthService = {
     // ------------------------------------------------------------------------
     // 2. THE VIP PASS (Verification)
     // ------------------------------------------------------------------------
+    async resendOTP(email: string) {
+        // 1. Check if user is still pending
+        const pendingDataStr = await redisClient.get(`pending:${email}`);
+        if (!pendingDataStr) throw new Error("Registration session expired or does not exist. Please register again.");
+        
+        const pendingData = JSON.parse(pendingDataStr);
+        
+        // 2. Generate a fresh OTP
+        const newOtp = EmailUtil.generateOTP();
+        
+        // 3. Update the tracking object
+        pendingData.otp = newOtp;
+        
+        // 4. Overwrite Redis (renew the TTL to 10 minutes)
+        await redisClient.setEx(`pending:${email}`, 600, JSON.stringify(pendingData));
+        
+        // 5. Fire off the email seamlessly
+        EmailUtil.sendOTPEmail(email, newOtp).catch(err => console.error("Email failed on resend:", err));
+
+        return { message: "A new OTP has been sent to your email." };
+    },
+
     async verifyEmail(email: string, otpAttempt: string) {
         // 1. Check the Redis Waiting Room
         const pendingDataStr = await redisClient.get(`pending:${email}`);

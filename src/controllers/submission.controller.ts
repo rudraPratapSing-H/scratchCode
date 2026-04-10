@@ -15,7 +15,7 @@ export const SubmissionController = {
             const userId = (req as any).user?.id;
 
             if (!userId) {
-                return res.status(401).json({ success: false, message: "Unauthorized" });
+                return res.status(401).json({ success: false, message: "Unauthorized (submission-controller)" });
             }
 
             // 1. Save the initial request to PostgreSQL with a "Pending" status
@@ -52,7 +52,8 @@ export const SubmissionController = {
             const userId = (req as any).user?.id;
 
             if (!userId) {
-                return res.status(401).json({ success: false, message: "Unauthorized" });
+                console.warn("Unauthorized attempt to run public code");
+                return res.status(401).json({ success: false, message: "Unauthorized(submission controller for public test)" });
             }
 
             const newSubmission = await prisma.submission.create({

@@ -26,9 +26,11 @@ const worker = new Worker('CodeSubmissions', async (job: Job) => {
         const fullCodeToRun = WrapperService.wrapCode(
             submission.language,
             submission.code,
-            config.boilerplate,
+            config.driverCode,
             testCases 
         );
+        
+        console.log(`full code to run:- ${fullCodeToRun}`);
         console.log(`[WORKER] Wrapped code for submission ${submissionId} (chars=${fullCodeToRun.length})`);
 
         // 3. EXECUTE

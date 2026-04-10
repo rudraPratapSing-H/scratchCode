@@ -113,5 +113,24 @@ export const AuthController = {
         } catch (error: any) {
             res.status(401).json({ success: false, message: error.message });
         }
+    }, 
+    // writing a controller to handle regeneration of otp and deletion of previous one
+    async resendOtp(req: Request, res: Response) {
+        try {
+            const { email } = req.body;
+            if (!email) {
+                res.status(400).json({ success: false, message: "Email is required" });
+                return;
+            }
+
+            const response = await AuthService.resendOTP(email);
+
+            res.status(200).json({
+                success: true,
+                message: response.message
+            });
+        } catch (error: any) {
+            res.status(400).json({ success: false, message: error.message });
+        }
     }
 };

@@ -14,13 +14,14 @@ type GradingResult = {
 
 export const GradingService = {
     evaluateOutput(actualOutput: string, testCases: any[], isPublicTestCase: boolean = false): GradingResult {
-        // Split Docker's stdout by newline (ignores empty lines at the very end)
-        const userAnswers = actualOutput.trim().split('\n');
-        const publicDetails: PublicCaseDetail[] = [];
+        const normalizedOutput = String(actualOutput || '').trim();
 
+        const userAnswers = normalizedOutput.split('\n');
+        const publicDetails: PublicCaseDetail[] = [];
+        
         // Loop through the JSONB test cases from the database
         for (let i = 0; i < testCases.length; i++) {
-            const expected = String(testCases[i].expectedOutput).trim();
+            const expected =  String(testCases[i]?.expectedOutput ?? '').trim();
             const actual = userAnswers[i] === undefined ? '' : String(userAnswers[i]).trim();
             const passed = userAnswers[i] !== undefined && actual === expected;
 
