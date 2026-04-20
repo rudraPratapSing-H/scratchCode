@@ -90,7 +90,9 @@ export const SubmissionController = {
                 where: { id },
                 select: {
                     status: true,
-                    errorMessage: true
+                    errorMessage: true,
+                    testCasesPassed: true,
+                    totalTestCases: true
                 }
             });
 
@@ -110,6 +112,8 @@ export const SubmissionController = {
             return res.status(200).json({
                 success: true,
                 status: submission.status,
+                testCasesPassed: submission.testCasesPassed,
+                totalTestCases: submission.totalTestCases,
                 details
             });
 

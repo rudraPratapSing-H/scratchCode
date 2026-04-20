@@ -1,5 +1,5 @@
 export const WrapperService = {
-    wrapCode(language: string, userCode: string, driverCode: string, testCases: any[]): string {
+    wrapCode(language: string, userCode: string, driverCode: string, testCase: any): string {
         if (!driverCode) return userCode;
 
         // 1. Inject the user's code
@@ -9,35 +9,33 @@ export const WrapperService = {
             fullCode = fullCode.replace('{{USER_CODE}}', userCode);
         }
 
-        // 2. Inject the test cases
-        if (fullCode.includes('{{TEST_CASES}}')) {
-            let testCasesString = '';
+        // 2. Inject one test case. We keep TEST_CASES for backward compatibility.
+        if (fullCode.includes('{{TEST_CASE}}') || fullCode.includes('{{TEST_CASES}}')) {
+            let testCaseString = '';
 
             if (language === 'cpp') {
-                // Map the JSON array into a C++ initializer list syntax
-                // Example Output: { {0, 1, 0, 2}, "6" }
-                const cppCases = testCases.map(tc => {
-                    const heightStr = tc.height.join(', ');
-                    return `{ {${heightStr}}, "${tc.expectedOutput}" }`;
-                });
-                
-                // Join all cases with a comma and a newline for clean formatting
-                testCasesString = cppCases.join(',\n        ');
+                // Keep the old shape expected by existing C++ driver templates.
+                const heightStr = Array.isArray(testCase?.height) ? testCase.height.join(', ') : '';
+                testCaseString = `{ {${heightStr}}, "${String(testCase?.expectedOutput ?? '')}" }`;
             } 
             else if (language === 'java') {
-                // Format for Java: new TestCase(new int[]{0, 1, 0, 2}, "6")
-                const javaCases = testCases.map(tc => {
-                    const heightStr = tc.height.join(', ');
-                    return `new TestCase(new int[]{${heightStr}}, "${tc.expectedOutput}")`;
-                });
-                testCasesString = javaCases.join(',\n            ');
+                // Keep the old shape expected by existing Java driver templates.
+                const heightStr = Array.isArray(testCase?.height) ? testCase.height.join(', ') : '';
+                testCaseString = `new TestCase(new int[]{${heightStr}}, "${String(testCase?.expectedOutput ?? '')}")`;
             }
             else {
-                // For Python, JS, TypeScript, standard JSON works perfectly
-                testCasesString = JSON.stringify(testCases);
+                // For Python/JS/TS, inject a single JSON test case object.
+                testCaseString = JSON.stringify(testCase);
             }
 
-            fullCode = fullCode.replace('{{TEST_CASES}}', testCasesString);
+            if (fullCode.includes('{{TEST_CASE}}')) {
+                fullCode = fullCode.replace('{{TEST_CASE}}', testCaseString);
+            }
+
+            if (fullCode.includes('{{TEST_CASES}}')) {
+                // Backward compatibility: old templates expect an array.
+                fullCode = fullCode.replace('{{TEST_CASES}}', JSON.stringify([testCase]));
+            }
         }
 
         return fullCode;

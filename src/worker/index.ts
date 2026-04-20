@@ -22,39 +22,94 @@ const worker = new Worker('CodeSubmissions', async (job: Job) => {
         await WorkerService.updateStatus(submissionId, "Running");
         console.log(`[WORKER] Submission ${submissionId} status updated to Running`);
 
-        // 2. WRAP (Pass the JSONB test cases to be injected)
-        const fullCodeToRun = WrapperService.wrapCode(
-            submission.language,
-            submission.code,
-            config.driverCode,
-            testCases 
-        );
-        
-        console.log(`full code to run:- ${fullCodeToRun}`);
-        console.log(`[WORKER] Wrapped code for submission ${submissionId} (chars=${fullCodeToRun.length})`);
+        const safeTestCases = Array.isArray(testCases) ? testCases : [];
+        const allDetails: any[] = [];
+        let passedCount = 0;
+        let firstFailureStatus: string | null = null;
 
-        // 3. EXECUTE
-        const { stdout } = await DockerService.executeContainer(
-            submissionId, submission.language, fullCodeToRun, config.memoryLimit, config.timeLimit
-        );
-        const outputPreview = (stdout || '').slice(0, 200).replace(/\s+/g, ' ').trim();
-        console.log(`[WORKER] Execution finished for submission ${submissionId}, stdout preview: "${outputPreview}"`);
+        // 2. EXECUTE EACH TEST CASE IN ISOLATION
+        for (let i = 0; i < safeTestCases.length; i++) {
+            const testCaseNumber = i + 1;
+            const currentCase = safeTestCases[i];
 
-        // 4. GRADE (Pass the output and the JSONB array to the grader)
-        const gradingResult = GradingService.evaluateOutput(stdout, testCases as any[], Boolean(isPublicRun));
-        console.log(`[WORKER] Verdict for submission ${submissionId}: ${gradingResult.status}`);
-        
-        // 5. SAVE
-        await WorkerService.updateStatus(submissionId, gradingResult.status, {
-            testCasesPassed: Array.isArray(gradingResult.details)
-                ? gradingResult.details.filter((d) => d.passed).length
-                : null,
-            totalTestCases: Array.isArray(testCases) ? testCases.length : null,
-            errorMessage: isPublicRun && gradingResult.details
-                ? JSON.stringify(gradingResult.details)
-                : null
+            const fullCodeToRun = WrapperService.wrapCode(
+                submission.language,
+                submission.code,
+                config.driverCode,
+                currentCase
+            );
+
+            try {
+                const { stdout } = await DockerService.executeContainer(
+                    `${submissionId}-tc-${testCaseNumber}`,
+                    submission.language,
+                    fullCodeToRun,
+                    config.memoryLimit,
+                    config.timeLimit
+                );
+
+                const outputPreview = (stdout || '').slice(0, 200).replace(/\s+/g, ' ').trim();
+                console.log(`[WORKER] Test case ${testCaseNumber} executed for submission ${submissionId}, stdout preview: "${outputPreview}"`);
+
+                const caseResult = GradingService.evaluateSingleCase(
+                    stdout,
+                    currentCase,
+                    testCaseNumber,
+                    true
+                );
+
+                if (caseResult.detail) {
+                    allDetails.push(caseResult.detail);
+                }
+
+                if (caseResult.passed) {
+                    passedCount += 1;
+                    continue;
+                }
+
+                firstFailureStatus = caseResult.status;
+                console.log(`[WORKER] Test case ${testCaseNumber} failed for submission ${submissionId}: ${caseResult.status}`);
+
+                if (!isPublicRun) {
+                    break;
+                }
+
+            } catch (error: any) {
+                const mappedStatus = GradingService.mapSystemError(error?.message || '');
+                const caseStatus = `${mappedStatus} on Test Case ${testCaseNumber}`;
+
+                if (!firstFailureStatus) {
+                    firstFailureStatus = caseStatus;
+                }
+
+                allDetails.push({
+                    testCase: testCaseNumber,
+                    testCaseData: currentCase,
+                    input: currentCase?.input,
+                    output: '',
+                    expectedOutput: String(currentCase?.expectedOutput ?? '').trim(),
+                    passed: false,
+                    error: mappedStatus
+                });
+
+                console.error(`[WORKER] Test case ${testCaseNumber} crashed for submission ${submissionId}:`, error?.message || error);
+
+                if (!isPublicRun) {
+                    break;
+                }
+            }
+        }
+
+        const finalStatus = firstFailureStatus || 'Accepted';
+        console.log(`[WORKER] Verdict for submission ${submissionId}: ${finalStatus}`);
+
+        // 3. SAVE
+        await WorkerService.updateStatus(submissionId, finalStatus, {
+            testCasesPassed: passedCount,
+            totalTestCases: safeTestCases.length,
+            errorMessage: allDetails.length > 0 ? JSON.stringify(allDetails) : null
         });
-        console.log(`[WORKER] Submission ${submissionId} status saved as ${gradingResult.status}`);
+        console.log(`[WORKER] Submission ${submissionId} status saved as ${finalStatus}`);
 
     } catch (error: any) {
         console.error(`[WORKER] Processing failed for submission ${submissionId}:`, error?.message || error);
