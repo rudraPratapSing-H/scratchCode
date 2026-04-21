@@ -23,6 +23,8 @@ const worker = new Worker('CodeSubmissions', async (job: Job) => {
         console.log(`[WORKER] Submission ${submissionId} status updated to Running`);
 
         const safeTestCases = Array.isArray(testCases) ? testCases : [];
+        console.log(`[WORKER] Processing submission ${submissionId} with ${safeTestCases.length} test cases`);
+        console.log(`[WORKER] Test cases data:`, JSON.stringify(safeTestCases, null, 2));
         const allDetails: any[] = [];
         let passedCount = 0;
         let firstFailureStatus: string | null = null;

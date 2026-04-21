@@ -5,7 +5,8 @@ generator client {
 
 datasource db {
   provider  = "postgresql"
-  
+
+ 
 }
 
 // --- 1. USERS TABLE ---
@@ -44,6 +45,8 @@ model Problem {
   // Relations
   submissions        Submission[] 
   languageConfigs    ProblemLanguage[] // NEW: Links to the language configs!
+
+  @@index([title])
 }
 
 // --- 3. PROBLEM LANGUAGE CONFIGS (The BCNF Fix) ---
@@ -84,6 +87,8 @@ model Submission {
   // Relations
   user              User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   problem           Problem  @relation(fields: [problemId], references: [id], onDelete: Cascade)
+
+  @@index([userId, problemId, language, createdAt(sort: Desc)])
 }
 
 // --- 5. ENUMS ---

@@ -121,5 +121,51 @@ export const SubmissionController = {
             console.error("Status Fetch Error:", error);
             return res.status(500).json({ success: false, message: "Internal server error." });
         }
+    },
+
+    async getLatestSubmissionByUser(req: Request, res: Response) {
+        try {
+            const userId = (req as any).user?.id;
+            const problemId = String(req.query.problemId || '').trim();
+            const language = String(req.query.language || '').trim();
+
+            if (!userId) {
+                return res.status(401).json({ success: false, message: 'Unauthorized' });
+            }
+
+            if (!problemId || !language) {
+                return res.status(400).json({
+                    success: false,
+                    message: 'problemId and language are required.'
+                });
+            }
+
+            const latestSubmission = await prisma.submission.findFirst({
+                where: {
+                    userId,
+                    problemId,
+                    language
+                },
+                orderBy: {
+                    createdAt: 'desc'
+                },
+                select: {
+                    id: true,
+                    code: true,
+                    status: true,
+                    createdAt: true,
+                    problemId: true,
+                    language: true
+                }
+            });
+
+            return res.status(200).json({
+                success: true,
+                data: latestSubmission
+            });
+        } catch (error: any) {
+            console.error('Latest Submission Fetch Error:', error);
+            return res.status(500).json({ success: false, message: 'Internal server error.' });
+        }
     }
 };

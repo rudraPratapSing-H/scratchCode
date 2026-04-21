@@ -1,5 +1,12 @@
 import { ProblemRepository } from '../repository/problem.repository.ts';   
 
+const FUZZY_RESULT_LIMIT = 3;
+const FUZZY_SIMILARITY_THRESHOLD = 0.35;
+
+const normalizeQuery = (query: string) => {
+    return query.toLowerCase().trim().replace(/\s+/g, ' ');
+};
+
 export const createNewProblem = async (data: any) => {
     // 1. Business Logic Validation
     if (!data.title || !data.description) {
@@ -30,4 +37,34 @@ export const getProblemById = async (problemId: string) => {
     }
 
     return problem;
+};
+
+export const searchProblemsByTitle = async (query: string) => {
+    const normalizedQuery = normalizeQuery(query);
+    if (!normalizedQuery) {
+        throw new Error('Search query is required.');
+    }
+
+    const exactProblem = await ProblemRepository.findProblemByTitleExact(normalizedQuery);
+    if (exactProblem) {
+        return {
+            matchType: 'exact' as const,
+            results: [exactProblem]
+        };
+    }
+
+    const fuzzyCandidates = await ProblemRepository.findProblemsByTitleFuzzy(
+        normalizedQuery,
+        FUZZY_RESULT_LIMIT,
+        FUZZY_SIMILARITY_THRESHOLD
+    );
+
+    const fuzzyResults = fuzzyCandidates.filter(
+        (candidate) => Number(candidate.similarityScore) >= FUZZY_SIMILARITY_THRESHOLD
+    );
+
+    return {
+        matchType: 'fuzzy' as const,
+        results: fuzzyResults
+    };
 };

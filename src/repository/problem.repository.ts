@@ -1,5 +1,12 @@
 import { prisma } from '../lib/prisma.ts'; // Update import path if using custom output
 
+type ProblemSearchRow = {
+    id: string;
+    title: string;
+    difficulty: string;
+    similarityScore: number;
+};
+
 export const ProblemRepository = {
     
     async createProblemWithLanguages(problemData: any, languageConfigs: any[]) {
@@ -33,5 +40,51 @@ export const ProblemRepository = {
                 languageConfigs: true
             }
         });
+    },
+
+    async findProblemByTitleExact(query: string): Promise<ProblemSearchRow | null> {
+        const result = await prisma.problem.findFirst({
+            where: {
+                title: {
+                    equals: query,
+                    mode: 'insensitive'
+                }
+            },
+            select: {
+                id: true,
+                title: true,
+                difficulty: true
+            }
+        });
+
+        if (!result) return null;
+
+        return {
+            id: result.id,
+            title: result.title,
+            difficulty: String(result.difficulty),
+            similarityScore: 1
+        };
+    },
+
+    async findProblemsByTitleFuzzy(query: string, limit: number, minThreshold: number): Promise<ProblemSearchRow[]> {
+        const rawRows = await prisma.$queryRaw<Array<{ id: string; title: string; difficulty: string; similarity_score: number }>>`
+            SELECT
+                p."id",
+                p."title",
+                p."difficulty"::text AS difficulty,
+                similarity(lower(p."title"), lower(${query})) AS similarity_score
+            FROM "Problem" p
+            WHERE similarity(lower(p."title"), lower(${query})) >= ${minThreshold}
+            ORDER BY similarity_score DESC, p."title" ASC
+            LIMIT ${limit}
+        `;
+
+        return rawRows.map((row) => ({
+            id: row.id,
+            title: row.title,
+            difficulty: row.difficulty,
+            similarityScore: Number(row.similarity_score)
+        }));
     }
 };
