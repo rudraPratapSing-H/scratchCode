@@ -15,13 +15,17 @@ export const WrapperService = {
 
             if (language === 'cpp') {
                 // Keep the old shape expected by existing C++ driver templates.
-                const heightStr = Array.isArray(testCase?.height) ? testCase.height.join(', ') : '';
-                testCaseString = `{ {${heightStr}}, "${String(testCase?.expectedOutput ?? '')}" }`;
+                const inputStr = Array.isArray(testCase?.input) 
+                    ? testCase.input.map(val => val === null ? 'null' : val).join(', ') 
+                    : '';
+                testCaseString = `{ {${inputStr}}, "${String(testCase?.expectedOutput ?? '')}" }`;
             } 
             else if (language === 'java') {
                 // Keep the old shape expected by existing Java driver templates.
-                const heightStr = Array.isArray(testCase?.height) ? testCase.height.join(', ') : '';
-                testCaseString = `new TestCase(new int[]{${heightStr}}, "${String(testCase?.expectedOutput ?? '')}")`;
+                const inputStr = Array.isArray(testCase?.input) 
+                    ? testCase.input.map(val => val === null ? 'null' : val).join(', ') 
+                    : '';
+                testCaseString = `new TestCase(new Integer[]{${inputStr}}, "${String(testCase?.expectedOutput ?? '')}")`;
             }
             else {
                 // For Python/JS/TS, inject a single JSON test case object.

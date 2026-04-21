@@ -7,7 +7,12 @@
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
     "tailwind:build": "tailwindcss -i ./styles/input.css -o ./styles/output.css --minify",
-    "tailwind:watch": "tailwindcss -i ./styles/input.css -o ./styles/output.css --watch"
+    "tailwind:watch": "tailwindcss -i ./styles/input.css -o ./styles/output.css --watch",
+    "prisma:status": "prisma migrate status",
+    "prisma:dev": "prisma migrate dev",
+    "prisma:reset": "prisma migrate reset --force",
+    "prisma:deploy": "prisma migrate deploy",
+    "prisma:generate": "prisma generate"
   },
   "keywords": [],
   "author": "",
