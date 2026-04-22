@@ -10,22 +10,48 @@ export const WrapperService = {
         }
 
         // 2. Inject one test case. We keep TEST_CASES for backward compatibility.
+        // Helper function to recursively find and extract all arrays from an input object
+        const extractArrays = (obj: any): any[][] => {
+            if (obj === null || obj === undefined) return [];
+            if (Array.isArray(obj)) return [obj];
+            if (typeof obj === 'object') {
+                // Recursively extract from all values in the object/dictionary
+                return Object.values(obj).flatMap(val => extractArrays(val));
+            }
+            // Fallback for single primitives, treating them as single-item arrays
+            // Adjust this if your driver templates expect raw primitives instead of arrays
+            return [[obj]];
+        };
+
+        // 2. Inject one test case. We keep TEST_CASES for backward compatibility.
         if (fullCode.includes('{{TEST_CASE}}') || fullCode.includes('{{TEST_CASES}}')) {
             let testCaseString = '';
 
+            const expectedOut = String(testCase?.expectedOutput ?? '');
+
             if (language === 'cpp') {
-                // Keep the old shape expected by existing C++ driver templates.
-                const inputStr = Array.isArray(testCase?.input) 
-                    ? testCase.input.map(val => val === null ? 'null' : val).join(', ') 
-                    : '';
-                testCaseString = `{ {${inputStr}}, "${String(testCase?.expectedOutput ?? '')}" }`;
+                const arrays = extractArrays(testCase?.input);
+                
+                // Map each array to a C++ initializer string: { "val1", "val2" }
+                const cppInputs = arrays.map(arr => {
+                    const elements = arr.map(val => val === null ? '"null"' : `"${val}"`).join(', ');
+                    return `{${elements}}`;
+                });
+                
+                // Join all array initializers together
+                testCaseString = `{ ${cppInputs.join(', ')}, "${expectedOut}" }`;
             } 
             else if (language === 'java') {
-                // Keep the old shape expected by existing Java driver templates.
-                const inputStr = Array.isArray(testCase?.input) 
-                    ? testCase.input.map(val => val === null ? 'null' : val).join(', ') 
-                    : '';
-                testCaseString = `new TestCase(new Integer[]{${inputStr}}, "${String(testCase?.expectedOutput ?? '')}")`;
+                const arrays = extractArrays(testCase?.input);
+                
+                // Map each array to a Java array initialization: new Integer[]{ val1, val2 }
+                const javaInputs = arrays.map(arr => {
+                    const elements = arr.map(val => val === null ? 'null' : val).join(', ');
+                    return `new Integer[]{${elements}}`;
+                });
+                
+                // Pass them all dynamically as arguments to TestCase
+                testCaseString = `new TestCase(${javaInputs.join(', ')}, "${expectedOut}")`;
             }
             else {
                 // For Python/JS/TS, inject a single JSON test case object.

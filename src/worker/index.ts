@@ -25,6 +25,7 @@ const worker = new Worker('CodeSubmissions', async (job: Job) => {
         const safeTestCases = Array.isArray(testCases) ? testCases : [];
         console.log(`[WORKER] Processing submission ${submissionId} with ${safeTestCases.length} test cases`);
         console.log(`[WORKER] Test cases data:`, JSON.stringify(safeTestCases, null, 2));
+        // console.log(`[WORKER] Full code: ${submission.code}`);
         const allDetails: any[] = [];
         let passedCount = 0;
         let firstFailureStatus: string | null = null;
@@ -40,6 +41,8 @@ const worker = new Worker('CodeSubmissions', async (job: Job) => {
                 config.driverCode,
                 currentCase
             );
+
+            console.log('[WORKER} full code to run : ', fullCodeToRun);
 
             try {
                 const { stdout } = await DockerService.executeContainer(
