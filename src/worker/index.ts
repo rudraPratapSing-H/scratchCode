@@ -18,7 +18,8 @@ const worker = new Worker('CodeSubmissions', async (job: Job) => {
         const { submission, config } = await WorkerService.getJobDetails(submissionId);
         const testCases = isPublicRun ? submission.problem.publicTestCases : submission.problem.privateTestCases;
         console.log(`[WORKER] Loaded submission ${submissionId}: language=${submission.language}, testCases=${Array.isArray(testCases) ? testCases.length : 0}`);
-
+        const paramaterType = submission.problem.parameterTypes;
+        console.log(`[WORKER] Parameter types for submission ${submissionId}:`, paramaterType);
         await WorkerService.updateStatus(submissionId, "Running");
         console.log(`[WORKER] Submission ${submissionId} status updated to Running`);
 
@@ -39,7 +40,8 @@ const worker = new Worker('CodeSubmissions', async (job: Job) => {
                 submission.language,
                 submission.code,
                 config.driverCode,
-                currentCase
+                currentCase,
+                paramaterType
             );
 
             console.log('[WORKER} full code to run : ', fullCodeToRun);

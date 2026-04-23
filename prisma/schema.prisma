@@ -30,22 +30,24 @@ model User {
 
 // --- 2. PROBLEMS TABLE (Normalized Core) ---
 model Problem {
-  id                 String            @id // e.g., "two-sum"
-  title              String
-  description        String            @db.Text
-  difficulty         Difficulty        @default(EASY)
+  id               String            @id // e.g., "two-sum"
+  title            String
+  description      String            @db.Text
+  difficulty       Difficulty        @default(EASY)
   
   // Separated Test Cases
-  publicTestCases    Json         
-  privateTestCases   Json         
+  publicTestCases  Json         
+  privateTestCases Json         
   
-  createdAt          DateTime          @default(now())
-  updatedAt          DateTime          @updatedAt
+  createdAt        DateTime          @default(now())
+  updatedAt        DateTime          @updatedAt
 
   // Relations
-  submissions        Submission[] 
-  languageConfigs    ProblemLanguage[] // NEW: Links to the language configs!
-
+  submissions      Submission[] 
+  languageConfigs  ProblemLanguage[] // NEW: Links to the language configs!
+  
+  parameterTypes   String[]            // e.g., ["array", "integer"]           
+  
   @@index([title])
 }
 
