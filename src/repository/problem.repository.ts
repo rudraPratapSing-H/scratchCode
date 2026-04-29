@@ -19,6 +19,7 @@ export const ProblemRepository = {
                 difficulty: problemData.difficulty,
                 publicTestCases: problemData.publicTestCases,
                 privateTestCases: problemData.privateTestCases,
+                parameterTypes: problemData.parameterTypes,
                 // Automatically inserts into the ProblemLanguage table!
                 languageConfigs: {
                     create: languageConfigs
