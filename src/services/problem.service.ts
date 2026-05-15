@@ -1,5 +1,5 @@
 import { ProblemRepository } from '../repository/problem.repository.ts';   
-
+import { prisma } from '../lib/prisma.ts';
 const FUZZY_RESULT_LIMIT = 3;
 const FUZZY_SIMILARITY_THRESHOLD = 0.35;
 
@@ -67,4 +67,19 @@ export const searchProblemsByTitle = async (query: string) => {
         matchType: 'fuzzy' as const,
         results: fuzzyResults
     };
+    
+};
+
+export const getAllProblems = async () => {
+    const allProblems = await prisma.problem.findMany({
+        include: {
+            languageConfigs: true
+        }
+    });
+
+    if (!allProblems || allProblems.length === 0) {
+        throw new Error('No problems found in the database.');
+    }
+
+    return allProblems;
 };

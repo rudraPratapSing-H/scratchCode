@@ -16,8 +16,9 @@ model User {
   username     String   @unique
 
   // Flattened authentication fields
-  password     String
-  salt         String
+  password     String?  // Make optional for Google login users
+  salt         String?  // Make optional for Google login users
+  googleId     String?  @unique // Add this for Google OAuth
   sessionToken String? 
   refreshToken String? 
 
@@ -47,7 +48,7 @@ model Problem {
   languageConfigs  ProblemLanguage[] // NEW: Links to the language configs!
   
   parameterTypes   String[]            // e.g., ["array", "integer"]           
-  
+  questionTypes   String[]            // e.g., ["algorithm", "data structure"]
   @@index([title])
 }
 

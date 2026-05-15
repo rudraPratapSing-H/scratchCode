@@ -1,8 +1,31 @@
 import express from 'express';
 import { createNewProblem, getProblemById, searchProblemsByTitle } from '../services/problem.service.ts';
-
+import { getAllProblems } from '../services/problem.service.ts';
+import { groupProblemsByQuestionType } from '../utils/problem.utils.ts';
 type Request = express.Request;
 type Response = express.Response;
+
+export const getProblemsGroupedByQuestionType = async (req: Request, res: Response) => {
+    try {
+        // Fetch all problems from the database
+        const allProblems = await getAllProblems();
+
+        // Group problems by questionType
+        const groupedProblems = groupProblemsByQuestionType(allProblems);
+
+        res.status(200).json({
+            success: true,
+            message: "Problems grouped by question type",
+            data: groupedProblems
+        });
+    } catch (error: any) {
+        res.status(400).json({
+            success: false,
+            message: error.message || 'Failed to fetch and group problems.'
+        });
+    }
+};
+
 
 export const addProblem = async (req: Request, res: Response) => {
     try {
