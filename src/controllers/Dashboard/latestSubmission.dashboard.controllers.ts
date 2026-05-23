@@ -6,9 +6,9 @@ import { AllSubmissionsService } from "../../services/Dashboard/latestSubmission
 import { UniqueProblemsForUserService } from "../../services/Dashboard/latestSubmission.dashboard.services.ts";
 import { TotalAcceptedProblemsForUserService } from "../../services/Dashboard/latestSubmission.dashboard.services.ts";
 import { AllSubmissionsForUserService } from "../../services/Dashboard/latestSubmission.dashboard.services.ts";
-
+import { UniqueAcceptedProblemsForUserService } from "../../services/Dashboard/latestSubmission.dashboard.services.ts";
 import { getAllSubmissionsForUser } from "../../services/Dashboard/latestSubmission.dashboard.services.ts";
-
+import { fetchProblemTitles } from '../../services/fetchProblemTitles.services.ts';
 type Request = express.Request;
 type Response = express.Response;
 
@@ -65,19 +65,20 @@ export const LatestSubmissionController = {
             const mediumProblems = await UniqueProblemsForUserService.getUniqueProblemsForUser(userId, "MEDIUM");
             const hardProblems = await UniqueProblemsForUserService.getUniqueProblemsForUser(userId, "HARD");
             const totalAccepted = await TotalAcceptedProblemsForUserService.getAllAcceptedProblemsForUser(userId);
+            // const uniqueAccepted = await UniqueAcceptedProblemsForUserService.getUniqueAcceptedProblemsForUser(userId);
             const allSubmissions = await AllSubmissionsForUserService.getAllSubmissionsForUser(userId);
-
+            const totalProblemCount = await fetchProblemTitles().then(problems => problems.length);
             const totalProblemArray = await getAllSubmissionsForUser.getAllSubmissionsForUser(userId);
             const totalProblems = totalProblemArray.length;
-
+            const uniqueProblems =  easyProblems.length + mediumProblems.length + hardProblems.length;
             const acceptedProblems = totalAccepted.length;
 
             const objectToTransfer: transferData = {
                 easy: easyProblems.length,
                 medium: mediumProblems.length,
                 hard: hardProblems.length,
-                totalProblems,
-                acceptedProblems,
+                totalProblems:totalProblemCount,
+                acceptedProblems: uniqueProblems,
                 score: totalProblems > 0 ? (acceptedProblems / totalProblems) * 100 : 0,
                 submissions: allSubmissions
             };

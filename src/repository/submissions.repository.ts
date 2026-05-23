@@ -1,6 +1,6 @@
 import { prisma } from '../lib/prisma.ts';
 
-type  SubmissionRetrivalObject = {
+type SubmissionRetrivalObject = {
     id: string;
     problemId: string;
     userId: string;
@@ -31,10 +31,37 @@ export const SubmissionsRepository = {
         return submission as SubmissionRetrivalObject | null;
     },
 
+    // prisma query to retrive unique accepted problems for a user for all languages and all difficulty levels
+    // async getUniqueAcceptedProblemsForUser(userId: string): Promise<string[]> {
+    //     const groups = await prisma.submission.groupBy({
+    //         by: ['problemId'],
+    //         where: { userId, status: 'Accepted' }
+    //     });
+    //     return groups.map(g => g.problemId);
+    // },
+
+    async getUniqueAcceptedProblemsForUser(userId: string): Promise<string[]> {
+        const submissions = await prisma.submission.findMany({
+            where: { userId, status: 'Accepted' },
+            select: { problemId: true }
+        });
+        return Array.from(new Set(submissions.map(s => s.problemId)));
+    },
+
+    async getUniqueProblemsForUser(userId: string): Promise<string[]> {
+        const submissions = await prisma.submission.findMany({
+            where: {
+                userId,
+            },
+            select: { problemId: true }
+        });
+        return Array.from(new Set(submissions.map(s => s.problemId)));
+    },
+
     // prisma query to retrive an array of all submissions objexts (SubmissionRetrivalObject) for a given problem and user, ordered by createdAt descending
     async getAllSubmissions(problemId: string, userId: string, language: string): Promise<SubmissionRetrivalObject[]> {
         const submissions = await prisma.submission.findMany({
-            where: { 
+            where: {
                 problemId,
                 userId,
                 language
@@ -42,11 +69,11 @@ export const SubmissionsRepository = {
             orderBy: {
                 createdAt: 'desc'
             }
-            
+
         });
         return submissions as SubmissionRetrivalObject[];
-    }, 
-    
+    },
+
     // prisma query to fetch all the submissions for a given user, ordered by createdAt descending
     async getAllSubmissionsForUser(userId: string): Promise<SubmissionRetrivalObject[]> {
         const submissions = await prisma.submission.findMany({
@@ -55,7 +82,7 @@ export const SubmissionsRepository = {
             },
             orderBy: {
                 createdAt: 'desc'
-            }   
+            }
 
         });
         return submissions as SubmissionRetrivalObject[];
@@ -67,17 +94,12 @@ export const SubmissionsRepository = {
             where: {
                 userId,
                 status: 'Accepted',
-                problem: {
-                    difficulty: difficulty
-                }
+                problem: { difficulty }
             },
-            select: {
-                problemId: true
-            },
-            distinct: ['problemId']
+            select: { problemId: true }
         });
-        return submissions.map(submission => submission.problemId);
-    },  
+        return Array.from(new Set(submissions.map(s => s.problemId)));
+    },
 
     // prisma query to fetch all accepted proplems for a particular user
     async getAllAcceptedProblemsForUser(userId: string): Promise<string[]> {
@@ -87,11 +109,11 @@ export const SubmissionsRepository = {
                 status: 'Accepted'
             },
             select: {
-                problemId: true         
-                }
-            }); 
+                problemId: true
+            }
+        });
 
-            return submissions.map(submission => submission.problemId);
-    }   
+        return submissions.map(submission => submission.problemId);
+    }
 
 }

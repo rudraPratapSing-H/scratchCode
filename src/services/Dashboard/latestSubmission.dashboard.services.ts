@@ -18,6 +18,7 @@ export const AllSubmissionsService = {
     }
 }
 
+
 // to fetch all submission for a user for all the alanguages 
 export const AllSubmissionsForUserService = {
     async getAllSubmissionsForUser(userId: string) {
@@ -40,6 +41,12 @@ export const TotalAcceptedProblemsForUserService = {
     async getAllAcceptedProblemsForUser(userId: string) {
         return await SubmissionsRepository.getAllAcceptedProblemsForUser(userId);
     }   
+}
+
+export const UniqueAcceptedProblemsForUserService = {
+    async getUniqueAcceptedProblemsForUser(userId: string) {
+        return await SubmissionsRepository.getUniqueAcceptedProblemsForUser(userId);
+    }
 }
 
 export const getAllSubmissionsForUser = {   

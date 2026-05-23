@@ -98,9 +98,52 @@ Fully configured to execute:
 
 ## API Endpoints
 
-### POST `/api/execute`
+The backend is mounted at `/api` for core application routes and `/api/auth` for authentication routes.
 
-Submits code for full evaluation against all test cases (private + public).
+### Problem Routes
+
+#### GET `/api/problems/grouped`
+
+Returns all problems grouped by `questionTypes`.
+
+Problems with no `questionTypes` value are grouped under `unknown`.
+
+**Response example:**
+```json
+{
+  "success": true,
+  "message": "Problems grouped by question type",
+  "data": {
+    "array": [{ "id": "two-sum", "title": "Two Sum" }],
+    "dynamic-programming": [{ "id": "climbing-stairs", "title": "Climbing Stairs" }],
+    "unknown": [{ "id": "misc-problem", "title": "Misc Problem" }]
+  }
+}
+```
+
+#### GET `/api/problems/titles`
+
+Returns the problem cards metadata: `id`, `title`, and `difficulty`.
+
+This endpoint is used to populate problem lists and search/autocomplete UI.
+
+#### GET `/api/problems/search?q=...`
+
+Searches problems by title.
+
+Returns exact matches first, then fuzzy matches if no exact match is found.
+
+#### GET `/api/problems/:problemId`
+
+Returns a single problem by ID, including its language configurations.
+
+Example: `/api/problems/two-sum`
+
+### Submission Routes
+
+#### POST `/api/execute`
+
+Submits code for full evaluation against the **private test cases**.
 
 **Authentication:** Required
 
@@ -123,11 +166,9 @@ Submits code for full evaluation against all test cases (private + public).
 }
 ```
 
----
+#### POST `/api/execute-public`
 
-### POST `/api/execute-public`
-
-Submits code for execution against public test cases only. Returns detailed per-test input/output/expected comparisons.
+Submits code for evaluation against the **public test cases only**.
 
 **Authentication:** Required
 
@@ -150,9 +191,7 @@ Submits code for execution against public test cases only. Returns detailed per-
 }
 ```
 
----
-
-### GET `/api/status/:id`
+#### GET `/api/status/:id`
 
 Polls the execution status of a specific submission.
 
@@ -161,97 +200,96 @@ Polls the execution status of a specific submission.
 **Path Parameters:**
 - `id` (string): The submission ID returned from `/execute` or `/execute-public`
 
-**Response:** `200 OK`
-```json
-{
-  "success": true,
-  "status": "Accepted",
-  "details": [
-    {
-      "testCase": 1,
-      "testCaseData": {
-        "input": [2, 7, 11, 15],
-        "expectedOutput": "[0, 1]"
-      },
-      "input": [2, 7, 11, 15],
-      "output": "[0, 1]",
-      "expectedOutput": "[0, 1]",
-      "passed": true
-    },
-    {
-      "testCase": 2,
-      "testCaseData": {
-        "input": [3, 2, 4],
-        "expectedOutput": "[1, 2]"
-      },
-      "input": [3, 2, 4],
-      "output": "[1, 2]",
-      "expectedOutput": "[1, 2]",
-      "passed": true
-    }
-  ]
-}
-```
-
 **Possible Status Values:**
-- `Pending` – Job is queued and waiting for a worker
-- `Running` – Worker is currently executing the code
-- `Accepted` – All test cases passed
-- `Wrong Answer` – Output does not match expected result
-- `Time Limit Exceeded` – Execution took longer than allowed
-- `Memory Limit Exceeded` – Memory usage exceeded the limit
-- `Runtime Error` – Code crashed during execution
-- `Compilation Error` – Code failed to compile
+- `Pending` - Job is queued and waiting for a worker
+- `Running` - Worker is currently executing the code
+- `Accepted` - All test cases passed
+- `Wrong Answer` - Output does not match expected result
+- `Time Limit Exceeded` - Execution took longer than allowed
+- `Memory Limit Exceeded` - Memory usage exceeded the limit
+- `Runtime Error` - Code crashed during execution
+- `Compilation Error` - Code failed to compile
 
----
+#### GET `/api/submissions/latest?problemId=...&language=...`
 
-### POST `/api/addProblem`
+Returns the latest submission for the authenticated user for a specific problem and language.
 
-Internal admin endpoint to seed the database with new problems, test cases, and language-specific boilerplate wrappers.
+**Authentication:** Required
 
-**Authentication:** Not enforced (admin only in production)
+### Dashboard Routes
 
-**Request Body:**
-```json
-{
-  "id": "two-sum",
-  "title": "Two Sum",
-  "description": "Find two numbers that add up to a target...",
-  "difficulty": "EASY",
-  "publicTestCases": [
-    {
-      "input": [2, 7, 11, 15],
-      "expectedOutput": "[0, 1]"
-    },
-    {
-      "input": [3, 2, 4],
-      "expectedOutput": "[1, 2]"
-    }
-  ],
-  "privateTestCases": [
-    {
-      "input": [3, 3],
-      "expectedOutput": "[0, 1]"
-    }
-  ],
-  "languageConfigs": [
-    {
-      "language": "javascript",
-      "boilerplate": "function twoSum(nums, target) { {{USER_CODE}} }",
-      "timeLimitMs": 5000,
-      "memoryLimitMb": 256
-    }
-  ]
-}
-```
+#### GET `/api/dashboard/submissions/latest/:problemId`
 
-**Response:** `200 OK` or `201 Created`
-```json
-{
-  "success": true,
-  "problemId": "two-sum"
-}
-```
+Returns the authenticated user’s latest submission for a specific problem.
+
+#### GET `/api/dashboard/submissions/all/:problemId`
+
+Returns all submissions made by the authenticated user for a specific problem.
+
+#### GET `/api/dashboard/user-data`
+
+Returns dashboard summary data for the authenticated user.
+
+### Admin / Problem Creation
+
+#### POST `/api/addProblem`
+
+Creates a new problem with public/private test cases and language configs.
+
+**Authentication:** Not enforced in code right now, but this should be restricted to admins in production.
+
+### Auth Routes
+
+Authentication routes are mounted at `/api/auth`.
+
+#### POST `/api/auth/register`
+
+Starts registration by generating an OTP and sending it to the user’s email.
+
+> Note: `/api/register` also exists in `setupRoutes()` in the current codebase, but `/api/auth/register` is the cleaner auth route to use.
+
+#### POST `/api/auth/verify-email`
+
+Verifies the OTP and completes account creation.
+
+#### POST `/api/auth/resend-otp`
+
+Resends the verification OTP to the email address.
+
+#### POST `/api/auth/login`
+
+Logs the user in with email and password.
+
+#### POST `/api/auth/logout`
+
+Clears the refresh token cookie and logs the user out.
+
+#### GET `/api/auth/me`
+
+Returns the authenticated user profile using the current session/token.
+
+**Authentication:** Required
+
+#### GET `/api/auth/google`
+
+Starts the Google OAuth flow by redirecting the user to Google.
+
+#### GET `/api/auth/google/callback`
+
+Handles the Google OAuth redirect, creates or updates the user, then redirects to the frontend with tokens.
+
+#### POST `/api/auth/google/callback-json`
+
+Handles the Google OAuth callback and returns JSON instead of redirecting.
+
+This is useful for Postman, mobile clients, or manual testing.
+
+### Notes
+
+- `GET /api/problems/titles` returns `id`, `title`, and `difficulty`, not only titles.
+- `POST /api/execute` uses private test cases.
+- `POST /api/execute-public` uses public test cases only.
+- `GET /api/problems/grouped` groups problems by every value in `questionTypes`, and places missing values under `unknown`.
 
 ---
 

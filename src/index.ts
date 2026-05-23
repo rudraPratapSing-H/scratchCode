@@ -9,7 +9,7 @@ import { requireAuth } from './middlewares/requireAuth.ts';
 const app: any = express();
 
 app.use(cors({
-    origin: 'http://localhost:5173', // Only allow your Vite frontend
+    origin: ['http://localhost:5173', 'http://localhost:5174'], // Allow Vite frontend on common ports
     credentials: true,               // CRITICAL: Allows cookies/tokens to be sent back and forth
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization']
