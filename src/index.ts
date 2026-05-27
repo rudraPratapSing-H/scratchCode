@@ -1,3 +1,4 @@
+import 'dotenv/config';
 import express from 'express';
 import cors from 'cors';
 import cookieParser from 'cookie-parser';
@@ -8,8 +9,21 @@ import { requireAuth } from './middlewares/requireAuth.ts';
 
 const app: any = express();
 
+const allowedOrigins = new Set([
+    'http://localhost:5173',
+    'http://localhost:5174',
+    process.env.FRONTEND_URL,
+].filter((origin): origin is string => Boolean(origin)));
+
 app.use(cors({
-    origin: ['http://localhost:5173', 'http://localhost:5174'], // Allow Vite frontend on common ports
+    origin: (origin, callback) => {
+        if (!origin || allowedOrigins.has(origin)) {
+            callback(null, true);
+            return;
+        }
+
+        callback(new Error(`CORS blocked for origin: ${origin}`));
+    },
     credentials: true,               // CRITICAL: Allows cookies/tokens to be sent back and forth
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization']
