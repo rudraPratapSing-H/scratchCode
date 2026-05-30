@@ -1,9 +1,15 @@
 export const WrapperService = {
-    wrapCode(language: string, userCode: string, driverCode: string, testCase: any, parameterType: string[]): string {
+    wrapCode(language: string, userCode: string, driverCode: string, testCases: any[] | any, parameterType: string[]): string {
         if (!driverCode) return userCode;
 
+        const parameterTypes = parameterType;
+        const normalizedTestCases = Array.isArray(testCases)
+            ? testCases
+            : testCases !== undefined && testCases !== null
+                ? [testCases]
+                : [];
+
         // 1. Inject the user's code
-        let parameterTypes = parameterType;
         let fullCode = driverCode;
         if (fullCode.includes('{{USER_CODE}}')) {
             fullCode = fullCode.replace('{{USER_CODE}}', userCode);
@@ -21,6 +27,59 @@ export const WrapperService = {
             // Fallback for single primitives, treating them as single-item arrays
             // Adjust this if your driver templates expect raw primitives instead of arrays
             return [[obj]];
+        };
+
+        const resolveInputValues = (testCase: any): any[] => {
+            let inputValues = Array.isArray(testCase?.input) ? testCase.input : (testCase?.input ? Object.values(testCase.input) : []);
+            const rawValues = Object.values(testCase?.input || {});
+            const matchedValues: any[] = new Array(parameterTypes.length).fill(null);
+            const usedIndices = new Set<number>();
+
+            for (let i = 0; i < parameterTypes.length; i++) {
+                const expectedType = parameterTypes[i];
+
+                for (let j = 0; j < rawValues.length; j++) {
+                    if (usedIndices.has(j)) continue;
+
+                    const val = rawValues[j];
+                    let isMatch = false;
+
+                    // Detect 2D Arrays (e.g., int[][])
+                    if (expectedType.endsWith('[][]') && Array.isArray(val) && (val.length === 0 || Array.isArray(val[0]))) {
+                        isMatch = true;
+                    }
+                    // Detect 1D Arrays (e.g., int[], String[])
+                    else if (expectedType.endsWith('[]') && !expectedType.endsWith('[][]') && Array.isArray(val) && (val.length === 0 || !Array.isArray(val[0]))) {
+                        isMatch = true;
+                    }
+                    // Detect Primitives (e.g., int, String, boolean)
+                    else if (!expectedType.endsWith('[]') && !Array.isArray(val) && typeof val !== 'object') {
+                        isMatch = true;
+                    }
+                    // Detect Objects (e.g., TreeNode, ListNode usually represented as flat arrays in JSON)
+                    else if ((expectedType === 'TreeNode' || expectedType === 'ListNode') && Array.isArray(val)) {
+                        isMatch = true;
+                    }
+
+                    if (isMatch) {
+                        matchedValues[i] = val;
+                        usedIndices.add(j);
+                        break;
+                    }
+                }
+            }
+
+            if (matchedValues.includes(null)) {
+                inputValues = rawValues;
+            } else {
+                inputValues = matchedValues;
+            }
+
+            if (parameterTypes.length !== inputValues.length) {
+                throw new Error(`Mismatch: parameterTypes (${parameterTypes.length}) and inputValues (${inputValues.length})`);
+            }
+
+            return inputValues;
         };
 
         // Helper: Map a value to its Java code representation based on type
@@ -66,7 +125,7 @@ export const WrapperService = {
             if (value === null || value === undefined) return 'nullptr';
             switch (type) {
                 case 'int': return String(value);
-                case 'long':return String(value) + 'L';
+                case 'long': return String(value) + 'L';
                 case 'double': return String(value);
                 case 'boolean': return value ? 'true' : 'false';
                 case 'char': return `'${value}'`;
@@ -74,7 +133,7 @@ export const WrapperService = {
                 case 'int[]': return `{${value.join(', ')}}`;
                 case 'long[]': return `{${value.map((v: any) => v + 'L').join(', ')}}`;
                 case 'double[]': return `{${value.join(', ')}}`;
-                case 'boolean[]':return `{${value.map((v: any) => v ? 'true' : 'false').join(', ')}}`;
+                case 'boolean[]': return `{${value.map((v: any) => v ? 'true' : 'false').join(', ')}}`;
                 case 'char[]': return `{${value.map((v: any) => `'${v}'`).join(', ')}}`;
                 case 'String[]':
                     return `{${value.map((v: any) => cppValue(type.replace('[]', ''), v)).join(', ')}}`;
@@ -100,39 +159,66 @@ export const WrapperService = {
             }
         };
 
-        // 2. Inject one test case. We keep TEST_CASES for backward compatibility.
-        if (fullCode.includes('{{TEST_CASE}}') || fullCode.includes('{{TEST_CASES}}')) {
-            let testCaseString = '';
-            const expectedOut = String(testCase?.expectedOutput ?? '');
-           
-            
-            console.log('Parameter Types:', parameterTypes);
-            console.log('Test Case Input:', testCase?.input);
-            const inputValues = Array.isArray(testCase?.input) ? testCase.input : (testCase?.input ? Object.values(testCase.input) : []);
-            if (parameterTypes.length !== inputValues.length) {
-                throw new Error(`Mismatch: parameterTypes (${parameterTypes.length}) and inputValues (${inputValues.length})`);
+        const pythonValue = (value: any): string => {
+            if (value === null || value === undefined) return 'None';
+            if (Array.isArray(value)) {
+                return `[${value.map((item) => pythonValue(item)).join(', ')}]`;
             }
+            if (typeof value === 'object') {
+                return `{${Object.entries(value).map(([key, item]) => `${JSON.stringify(key)}: ${pythonValue(item)}`).join(', ')}}`;
+            }
+            if (typeof value === 'string') return JSON.stringify(value);
+            if (typeof value === 'boolean') return value ? 'True' : 'False';
+            return String(value);
+        };
+
+        const buildSingleTestCaseLiteral = (testCase: any): string => {
+            const expectedOut = String(testCase?.expectedOutput ?? testCase?.expected ?? '');
+            const inputValues = resolveInputValues(testCase);
+
             if (language === 'cpp') {
-                // Map each input to its C++ representation
-                
                 const cppInputs = parameterTypes.map((type: string, idx: number) => cppValue(type, inputValues[idx]));
-                testCaseString = `{ ${cppInputs.join(', ')}, "${expectedOut}" }`;
-            } else if (language === 'java') {
-                // Map each input to its Java representation
-                const javaInputs = parameterTypes.map((type: string, idx: number) => javaValue(type, inputValues[idx]));
-                testCaseString = `new TestCase(${javaInputs.join(', ')}, "${expectedOut}")`;
-            } else {
-                // For Python/JS/TS, inject a single JSON test case object.
-                testCaseString = JSON.stringify(testCase);
+                return `TestCase(${cppInputs.join(', ')}, ${JSON.stringify(expectedOut)})`;
             }
 
+            if (language === 'java') {
+                const javaInputs = parameterTypes.map((type: string, idx: number) => javaValue(type, inputValues[idx]));
+                return `new TestCase(${javaInputs.join(', ')}, ${JSON.stringify(expectedOut)})`;
+            }
+
+            if (language === 'python') {
+                return pythonValue(testCase);
+            }
+
+            return JSON.stringify(testCase);
+        };
+
+        const buildTestCaseCollectionLiteral = (cases: any[]): string => {
+            const literals = cases.map((item) => buildSingleTestCaseLiteral(item));
+
+            if (language === 'cpp') {
+                return `std::vector<TestCase>{${literals.join(', ')}}`;
+            }
+
+            if (language === 'java') {
+                return `new TestCase[]{${literals.join(', ')}}`;
+            }
+
+            if (language === 'python') {
+                return `[${literals.join(', ')}]`;
+            }
+
+            return `[${literals.join(', ')}]`;
+        };
+
+        // 2. Inject one or many test cases.
+        if (fullCode.includes('{{TEST_CASE}}') || fullCode.includes('{{TEST_CASES}}')) {
             if (fullCode.includes('{{TEST_CASE}}')) {
-                fullCode = fullCode.replace('{{TEST_CASE}}', testCaseString);
+                fullCode = fullCode.replace('{{TEST_CASE}}', buildSingleTestCaseLiteral(normalizedTestCases[0]));
             }
 
             if (fullCode.includes('{{TEST_CASES}}')) {
-                // Backward compatibility: old templates expect an array.
-                fullCode = fullCode.replace('{{TEST_CASES}}', JSON.stringify([testCase]));
+                fullCode = fullCode.replace('{{TEST_CASES}}', buildTestCaseCollectionLiteral(normalizedTestCases));
             }
         }
 

@@ -9,25 +9,41 @@ import { requireAuth } from './middlewares/requireAuth.ts';
 
 const app: any = express();
 
+
 const allowedOrigins = new Set([
     'http://localhost:5173',
     'http://localhost:5174',
     process.env.FRONTEND_URL,
-].filter((origin): origin is string => Boolean(origin)));
+].filter((o): o is string => Boolean(o)));
 
+const isAllowedOrigin = (origin?: string) => {
+    if (!origin) return false;
+    if (allowedOrigins.has(origin)) return true;
+    // Allow Vercel preview domains and ngrok tunnels
+    if (origin.endsWith('.vercel.app')) return true;
+    if (origin.endsWith('.ngrok-free.app') || origin.endsWith('.ngrok.app') || origin.endsWith('.ngrok.io')) return true;
+    return false;
+};
+console.log('Allowed CORS origins:', Array.from(allowedOrigins));
 app.use(cors({
     origin: (origin, callback) => {
-        if (!origin || allowedOrigins.has(origin)) {
+        if (!origin) {
+            // non-browser requests (curl, server-side) — allow
             callback(null, true);
             return;
         }
 
+        if (isAllowedOrigin(origin)) {
+            callback(null, true);
+            return;
+        }
+
+        console.warn(`CORS blocked for origin: ${origin}`);
         callback(new Error(`CORS blocked for origin: ${origin}`));
     },
-    credentials: true,               // CRITICAL: Allows cookies/tokens to be sent back and forth
-    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization']
+    credentials: true
 }));
+
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());

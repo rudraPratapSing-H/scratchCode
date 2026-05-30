@@ -19,7 +19,7 @@ export const setupRoutes = () => {
     router.get('/problems/search', searchProblems);
     router.get('/problems/:problemId', getProblem);
     router.post('/register', AuthController.register);
-    router.get('/status/:id', SubmissionController.getStatus);
+    router.get('/status/:id', requireAuth, SubmissionController.getStatus);
 
     // routes for dashboard type shi
         router.get('/dashboard/submissions/latest/:problemId', requireAuth, LatestSubmissionController.getLatestSubmission);

@@ -15,9 +15,9 @@ export const QueueService = {
     /**
      * Pushes a new submission ID into the Redis queue for the Worker to process.
      */
-    async enqueueSubmission(submissionId: string, isPublicRun: boolean = false) {
+    async enqueueSubmission(submissionId: string, isPublicRun: boolean = false, selectedTestCases: any[] = []) {
         // The first argument is the job name, the second is the payload
-        await submissionQueue.add('CodeSubmissions', { submissionId, isPublicRun });
+        await submissionQueue.add('CodeSubmissions', { submissionId, isPublicRun, selectedTestCases });
         console.log(`📥 [PRODUCER] Submission ${submissionId} added to Redis queue.`);
     }
 };

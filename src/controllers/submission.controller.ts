@@ -18,6 +18,15 @@ export const SubmissionController = {
                 return res.status(401).json({ success: false, message: "Unauthorized (submission-controller)" });
             }
 
+            const problem = await prisma.problem.findUnique({
+                where: { id: problemId },
+                select: { id: true }
+            });
+
+            if (!problem) {
+                return res.status(404).json({ success: false, message: 'Problem not found.' });
+            }
+
             // 1. Save the initial request to PostgreSQL with a "Pending" status
             const newSubmission = await prisma.submission.create({
                 data: {
@@ -41,6 +50,9 @@ export const SubmissionController = {
             });
 
         } catch (error: any) {
+            if (error?.code === 'P2003') {
+                return res.status(400).json({ success: false, message: 'Invalid problemId. The selected problem does not exist.' });
+            }
             console.error("Submission Error:", error);
             res.status(500).json({ success: false, message: "Internal server error." });
         }
@@ -48,12 +60,21 @@ export const SubmissionController = {
 
     async runPublicCode(req: Request, res: Response) {
         try {
-            const { problemId, language, code } = req.body;
+            const { problemId, language, code, selectedTestCases } = req.body;
             const userId = (req as any).user?.id;
 
             if (!userId) {
                 console.warn("Unauthorized attempt to run public code");
                 return res.status(401).json({ success: false, message: "Unauthorized(submission controller for public test)" });
+            }
+
+            const problem = await prisma.problem.findUnique({
+                where: { id: problemId },
+                select: { id: true }
+            });
+
+            if (!problem) {
+                return res.status(404).json({ success: false, message: 'Problem not found.' });
             }
 
             const newSubmission = await prisma.submission.create({
@@ -66,7 +87,11 @@ export const SubmissionController = {
                 }
             });
 
-            await QueueService.enqueueSubmission(newSubmission.id, true);
+            await QueueService.enqueueSubmission(
+                newSubmission.id,
+                true,
+                Array.isArray(selectedTestCases) ? selectedTestCases : []
+            );
 
             return res.status(201).json({
                 success: true,
@@ -76,6 +101,9 @@ export const SubmissionController = {
             });
 
         } catch (error: any) {
+            if (error?.code === 'P2003') {
+                return res.status(400).json({ success: false, message: 'Invalid problemId. The selected problem does not exist.' });
+            }
             console.error("Public Run Error:", error);
             return res.status(500).json({ success: false, message: "Internal server error." });
         }

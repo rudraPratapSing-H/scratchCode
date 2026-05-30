@@ -55,20 +55,26 @@ export const GradingService = {
         return {
             status: 'Accepted',
             passed,
-            detail: passed ? undefined : detail
+            detail
         };
     },
 
     evaluateOutput(actualOutput: string, testCases: any[], isPublicTestCase: boolean = false): GradingResult {
-        const userAnswers = String(actualOutput || '').trim().split('\n');
+        const userAnswers = String(actualOutput || '').trim().length > 0
+            ? String(actualOutput || '').trim().split(/\r?\n/)
+            : [];
         const publicDetails: PublicCaseDetail[] = [];
+        let firstFailureDetail: PublicCaseDetail | undefined;
+        let firstFailureStatus: string | null = null;
         
         // Loop through the JSONB test cases from the database
         for (let i = 0; i < testCases.length; i++) {
-            // Handle cases where the user's code crashed before finishing all tests
-            if (userAnswers[i] === undefined) {
-                if (isPublicTestCase) {
-                    publicDetails.push({
+            const actualLine = userAnswers[i];
+            const caseResult = actualLine === undefined
+                ? {
+                    status: `Wrong Answer on Test Case ${i + 1}`,
+                    passed: false,
+                    detail: isPublicTestCase ? {
                         testCase: i + 1,
                         testCaseData: testCases[i],
                         input: testCases[i]?.input,
@@ -76,32 +82,28 @@ export const GradingService = {
                         expectedOutput: String(testCases[i]?.expectedOutput ?? '').trim(),
                         passed: false,
                         error: 'No output received for this test case.'
-                    });
+                    } : undefined
                 }
-
-                return {
-                    status: `Wrong Answer on Test Case ${i + 1}`,
-                    details: isPublicTestCase ? publicDetails : undefined
-                };
-            }
-
-            const caseResult = this.evaluateSingleCase(userAnswers[i], testCases[i], i + 1, isPublicTestCase);
+                : this.evaluateSingleCase(actualLine, testCases[i], i + 1, isPublicTestCase);
 
             if (isPublicTestCase && caseResult.detail) {
                 publicDetails.push(caseResult.detail);
             }
 
+            if (!isPublicTestCase && !firstFailureDetail && caseResult.detail && !caseResult.passed) {
+                firstFailureDetail = caseResult.detail;
+            }
+
             if (!caseResult.passed) {
-                return {
-                    status: caseResult.status,
-                    details: isPublicTestCase ? publicDetails : undefined
-                };
+                if (!firstFailureStatus) {
+                    firstFailureStatus = caseResult.status;
+                }
             }
         }
 
         return {
-            status: 'Accepted',
-            details: isPublicTestCase ? publicDetails : undefined
+            status: firstFailureStatus || 'Accepted',
+            details: isPublicTestCase ? publicDetails : (firstFailureDetail ? [firstFailureDetail] : undefined)
         };
     },
 
