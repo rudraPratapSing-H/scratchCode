@@ -11,7 +11,7 @@ export const AuthService = {
     // 1. THE WAITING ROOM (Registration)
     // ------------------------------------------------------------------------
     async registerUser(data: any) {
-        const { email, username, password } = data;
+        const { email, username, password, organizationId, role } = data;
 
         // 1. Check if the user already exists in Postgres
         const existingUser = await prisma.user.findFirst({
@@ -24,7 +24,7 @@ export const AuthService = {
 
         // 3. Generate OTP & Create the Pending Package
         const otp = EmailUtil.generateOTP();
-        const pendingUser = { email, username, hash, salt, otp };
+        const pendingUser = { email, username, hash, salt, otp, organizationId: organizationId ?? null, role: role ?? 'USER' };
 
         // 4. Save to Redis with a 10-minute TTL (600 seconds)
         await redisClient.setEx(`pending:${email}`, 600, JSON.stringify(pendingUser));
@@ -44,7 +44,7 @@ export const AuthService = {
         const pendingDataStr = await redisClient.get(`pending:${email}`);
         if (!pendingDataStr) throw new Error("Registration session expired or does not exist. Please register again.");
         
-        const pendingData = JSON.parse(pendingDataStr);
+        const pendingData = JSON.parse(pendingDataStr.toString());
         
         // 2. Generate a fresh OTP
         const newOtp = EmailUtil.generateOTP();
@@ -66,7 +66,7 @@ export const AuthService = {
         const pendingDataStr = await redisClient.get(`pending:${email}`);
         if (!pendingDataStr) throw new Error("OTP expired or invalid. Please register again.");
 
-        const pendingData = JSON.parse(pendingDataStr);
+        const pendingData = JSON.parse(pendingDataStr.toString());
 
         // 2. Verify OTP
         if (pendingData.otp !== otpAttempt) throw new Error("Incorrect OTP.");
@@ -77,13 +77,15 @@ export const AuthService = {
                 email: pendingData.email, 
                 username: pendingData.username, 
                 password: pendingData.hash, 
-                salt: pendingData.salt 
+                salt: pendingData.salt,
+                organizationId: pendingData.organizationId ?? null,
+                role: pendingData.role ?? 'USER'
             }
         });
 
         // 4. Generate tokens and update the user in Postgres.
-        const accessToken = JwtUtil.generateToken({ userId: user.id }, '15m');
-        const refreshToken = JwtUtil.generateToken({ userId: user.id, generatedAt: Date.now() }, '7d');
+        const accessToken = JwtUtil.generateToken({ userId: user.id, organizationId: user.organizationId, role: user.role }, '15m');
+        const refreshToken = JwtUtil.generateToken({ userId: user.id, organizationId: user.organizationId, role: user.role, generatedAt: Date.now() }, '7d');
 
         await prisma.user.update({
             where: { id: user.id },
@@ -112,8 +114,8 @@ export const AuthService = {
         const isValid = await HashUtil.compare(passwordAttempt, user.password);
         if (!isValid) throw new Error("Invalid credentials.");
 
-        const accessToken = JwtUtil.generateToken({ userId: user.id }, '15m');
-        const refreshToken = JwtUtil.generateToken({ userId: user.id, generatedAt: Date.now() }, '7d');
+        const accessToken = JwtUtil.generateToken({ userId: user.id, organizationId: user.organizationId, role: user.role }, '15m');
+        const refreshToken = JwtUtil.generateToken({ userId: user.id, organizationId: user.organizationId, role: user.role, generatedAt: Date.now() }, '7d');
 
         await prisma.user.update({
             where: { id: user.id },
@@ -134,8 +136,8 @@ export const AuthService = {
         if (gracePeriodToken) {
             // It's a double-render! Give them a fresh access token, but return the 
             // exact same refresh token we generated 10 milliseconds ago.
-            const decoded: any = JwtUtil.verifyToken(gracePeriodToken);
-            const newAccessToken = JwtUtil.generateToken({ userId: decoded.userId }, '15m');
+            const decoded: any = JwtUtil.verifyToken(gracePeriodToken.toString());
+            const newAccessToken = JwtUtil.generateToken({ userId: decoded.userId, organizationId: decoded.organizationId, role: decoded.role }, '15m');
             return { accessToken: newAccessToken, refreshToken: gracePeriodToken };
         }
 
@@ -154,11 +156,11 @@ export const AuthService = {
         }
 
         // 4. Generate the new tokens
-        const newAccessToken = JwtUtil.generateToken({ userId: user.id }, '15m');
+        const newAccessToken = JwtUtil.generateToken({ userId: user.id, organizationId: user.organizationId, role: user.role }, '15m');
         let newRefreshToken = oldRefreshToken;
 
         if (shouldRotate) {
-            newRefreshToken = JwtUtil.generateToken({ userId: user.id, generatedAt: Date.now() }, '7d');
+            newRefreshToken = JwtUtil.generateToken({ userId: user.id, organizationId: user.organizationId, role: user.role, generatedAt: Date.now() }, '7d');
 
             // 5. Update Postgres
             await prisma.user.update({

@@ -10,7 +10,7 @@ export const GoogleAuthService = {
         email: string;
         name: string;
         picture?: string;
-    }) {
+    }, organizationId?: string | null) {
         let user = await prisma.user.findUnique({
             where: { email: googleProfile.email }
         });
@@ -23,14 +23,24 @@ export const GoogleAuthService = {
                     username: googleProfile.name || googleProfile.email.split('@')[0],
                     googleId: googleProfile.id,
                     password: '', // Empty for Google users
-                    salt: ''
+                    salt: '',
+                    organizationId: organizationId ?? null,
+                    role: 'USER'
                 }
             });
         } else if (!user.googleId) {
             // Link existing user to Google account
             user = await prisma.user.update({
                 where: { id: user.id },
-                data: { googleId: googleProfile.id }
+                data: {
+                    googleId: googleProfile.id,
+                    organizationId: user.organizationId ?? organizationId ?? null
+                }
+            });
+        } else if (!user.organizationId && organizationId) {
+            user = await prisma.user.update({
+                where: { id: user.id },
+                data: { organizationId }
             });
         }
 
@@ -41,9 +51,13 @@ export const GoogleAuthService = {
      * Generate tokens for Google authenticated user
      */
     async generateTokens(userId: string) {
-        const accessToken = JwtUtil.generateToken({ userId }, '15m');
+        const user = await prisma.user.findUnique({ where: { id: userId } });
+        const organizationId = user?.organizationId ?? null;
+        const role = user?.role ?? null;
+
+        const accessToken = JwtUtil.generateToken({ userId, organizationId, role }, '15m');
         const refreshToken = JwtUtil.generateToken(
-            { userId, generatedAt: Date.now() },
+            { userId, organizationId, role, generatedAt: Date.now() },
             '7d'
         );
 

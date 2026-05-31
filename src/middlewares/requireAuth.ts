@@ -16,11 +16,11 @@ export async function requireAuth(req: Request, res: Response, next: NextFunctio
 
     if (accessToken) {
         try {
-            const decoded: any = JwtUtil.verifyToken(accessToken);
-            if (decoded?.userId) {
-                (req as any).user = { id: decoded.userId };
-                return next();
-            }
+                const decoded: any = JwtUtil.verifyToken(accessToken);
+                if (decoded?.userId) {
+                    (req as any).user = { id: decoded.userId, organizationId: decoded.organizationId ?? null, role: decoded.role ?? null };
+                    return next();
+                }
         } catch (_error: any) {
             // Access token invalid/expired, continue with refresh fallback.
         }
@@ -58,7 +58,7 @@ export async function requireAuth(req: Request, res: Response, next: NextFunctio
         // Ensure CORS exposes the custom header so the frontend can read it!
         res.setHeader('Access-Control-Expose-Headers', 'x-new-access-token');
 
-        (req as any).user = { id: refreshUserId };
+        (req as any).user = { id: refreshUserId, organizationId: decodedRefresh.organizationId ?? null, role: decodedRefresh.role ?? null };
         return next();
     } catch (error: any) {
         console.error("Auth Refresh Error:", error.message);

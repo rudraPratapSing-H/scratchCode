@@ -17,6 +17,7 @@ export const ProblemRepository = {
                 title: problemData.title,
                 description: problemData.description,
                 difficulty: problemData.difficulty,
+                organizationId: problemData.organizationId ?? null,
                 publicTestCases: problemData.publicTestCases,
                 privateTestCases: problemData.privateTestCases,
                 parameterTypes: problemData.parameterTypes,

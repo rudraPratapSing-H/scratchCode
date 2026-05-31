@@ -59,7 +59,8 @@ export const AuthController = {
     // 2. LOGIN (The Cookie Baker)
     async login(req: Request, res: Response) {
         try {
-            const { email, password } = req.body;
+            const { email, password, organizationId } = req.body;
+            // organizationId is accepted from the client and included in req.body
             
             // Ask the Service to verify credentials and generate tokens
             const { user, accessToken, refreshToken } = await AuthService.loginUser(email, password);
@@ -75,7 +76,7 @@ export const AuthController = {
             // Send back standard user data for the React frontend state and the access token
             res.status(200).json({
                 success: true,
-                user: { id: user.id, username: user.username, email: user.email },
+                user: { id: user.id, username: user.username, email: user.email, organizationId: user.organizationId },
                 accessToken
             });
         } catch (error: any) {

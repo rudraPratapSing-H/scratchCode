@@ -6,18 +6,36 @@ type Request = express.Request;
 type Response = express.Response;
 
 export const GoogleAuthController = {
+    getOrganizationIdFromState(state: unknown) {
+        if (typeof state !== 'string' || !state.trim()) return null;
+
+        try {
+            const parsed = JSON.parse(state) as { organizationId?: string | null };
+            return typeof parsed.organizationId === 'string' && parsed.organizationId.trim()
+                ? parsed.organizationId
+                : null;
+        } catch {
+            return null;
+        }
+    },
+
     /**
      * Initiate Google OAuth flow
      * Redirects to Google login
      */
     async initiateGoogleAuth(req: Request, res: Response) {
+        const organizationId = typeof req.query.organizationId === 'string' && req.query.organizationId.trim()
+            ? req.query.organizationId.trim()
+            : null;
+
         const googleAuthUrl = `https://accounts.google.com/o/oauth2/v2/auth?${new URLSearchParams({
             client_id: process.env.GOOGLE_CLIENT_ID || '',
             redirect_uri: process.env.GOOGLE_CALLBACK_URL || '',
             response_type: 'code',
             scope: 'openid email profile',
             access_type: 'offline',
-            prompt: 'consent'
+            prompt: 'consent',
+            state: JSON.stringify({ organizationId })
         }).toString()}`;
 
         res.redirect(googleAuthUrl);
@@ -29,7 +47,7 @@ export const GoogleAuthController = {
      */
     async googleCallback(req: Request, res: Response) {
         try {
-            const { code } = req.query;
+            const { code, state } = req.query;
 
             if (!code) {
                 res.status(400).json({
@@ -68,8 +86,10 @@ export const GoogleAuthController = {
                 picture: userInfoResponse.data.picture
             };
 
+            const organizationId = GoogleAuthController.getOrganizationIdFromState(state);
+
             // Find or create user
-            const user = await GoogleAuthService.findOrCreateUser(googleProfile);
+            const user = await GoogleAuthService.findOrCreateUser(googleProfile, organizationId);
 
             // Generate our app tokens
             const { accessToken, refreshToken } = await GoogleAuthService.generateTokens(
@@ -105,7 +125,7 @@ export const GoogleAuthController = {
      */
     async googleCallbackJson(req: Request, res: Response) {
         try {
-            const { code } = req.body;
+            const { code, state } = req.body;
 
             if (!code) {
                 res.status(400).json({
@@ -144,8 +164,10 @@ export const GoogleAuthController = {
                 picture: userInfoResponse.data.picture
             };
 
+            const organizationId = GoogleAuthController.getOrganizationIdFromState(state);
+
             // Find or create user
-            const user = await GoogleAuthService.findOrCreateUser(googleProfile);
+            const user = await GoogleAuthService.findOrCreateUser(googleProfile, organizationId);
 
             // Generate our app tokens
             const { accessToken, refreshToken } = await GoogleAuthService.generateTokens(
