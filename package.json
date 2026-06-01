@@ -32,7 +32,6 @@
     "ts-node": "^10.9.2"
   },
   "dependencies": {
-    "-": "^0.0.1",
     "@prisma/adapter-pg": "^7.5.0",
     "@prisma/client": "^7.5.0",
     "axios": "^1.16.1",
