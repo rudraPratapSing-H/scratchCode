@@ -13,7 +13,8 @@ export const UserRepository = {
     },
 
     findUserByUsername: async (username: string) => {
-        return await prisma.user.findUnique({
+        // Username is no longer unique; return the first matching user if any.
+        return await prisma.user.findFirst({
             where: { username }
         });
     },

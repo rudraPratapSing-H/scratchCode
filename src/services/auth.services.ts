@@ -14,10 +14,11 @@ export const AuthService = {
         const { email, username, password, organizationId, role } = data;
 
         // 1. Check if the user already exists in Postgres
-        const existingUser = await prisma.user.findFirst({
-            where: { OR: [{ email }, { username }] }
+        // Enforce uniqueness only on email (username is not unique anymore)
+        const existingUser = await prisma.user.findUnique({
+            where: { email }
         });
-        if (existingUser) throw new Error("Email or username already taken.");
+        if (existingUser) throw new Error("Email already taken.");
 
         // 2. Hash the password
         const { hash, salt } = await HashUtil.hashPassword(password);
