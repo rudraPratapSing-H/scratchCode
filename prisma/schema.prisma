@@ -37,7 +37,7 @@ model Competition {
 model User {
   id             String        @id @default(uuid())
   email          String        @unique
-  username       String        @unique
+  username       String
   role           Role          @default(USER)
   organizationId String?
 
