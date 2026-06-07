@@ -19,6 +19,20 @@ model Organization {
   problems    Problem[]
 }
 
+// --- 1. COMPETITIONS TABLE ---
+model Competition {
+  id                        String   @id @default(uuid())
+  title                     String
+  startTime                 DateTime
+  endTime                   DateTime
+  fullScreenMandatory       Boolean  @default(false)
+  keyboardShortcutsBlocked   Boolean  @default(false)
+
+  problems                  CompetitionProblem[]
+  participants              CompetitionParticipant[]
+  submissions               Submission[]
+}
+
 // --- 1. USERS TABLE ---
 model User {
   id             String        @id @default(uuid())
@@ -40,6 +54,7 @@ model User {
   // Relations
   organization   Organization? @relation(fields: [organizationId], references: [id], onDelete: SetNull)
   submissions    Submission[]
+  participations  CompetitionParticipant[]
 }
 
 // --- 2. PROBLEMS TABLE (Normalized Core) ---
@@ -61,6 +76,7 @@ model Problem {
   organization     Organization?  @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   submissions      Submission[] 
   languageConfigs  ProblemLanguage[] // NEW: Links to the language configs!
+  competitionLinks CompetitionProblem[]
   
   parameterTypes   String[]            // e.g., ["array", "integer"]           
   questionTypes   String[]            // e.g., ["algorithm", "data structure"]
@@ -68,7 +84,33 @@ model Problem {
   @@index([organizationId])
 }
 
-// --- 3. PROBLEM LANGUAGE CONFIGS (The BCNF Fix) ---
+// --- 3. COMPETITION PROBLEM LINKS ---
+model CompetitionProblem {
+  id             String      @id @default(uuid())
+  competitionId  String
+  problemId      String
+
+  competition    Competition @relation(fields: [competitionId], references: [id], onDelete: Cascade)
+  problem        Problem     @relation(fields: [problemId], references: [id], onDelete: Cascade)
+
+  @@unique([competitionId, problemId])
+}
+
+// --- 4. COMPETITION PARTICIPANTS ---
+model CompetitionParticipant {
+  id               String      @id @default(uuid())
+  competitionId    String
+  userId           String
+  cheatingAttempts Int         @default(0)
+  score            Int         @default(0)
+
+  competition      Competition @relation(fields: [competitionId], references: [id], onDelete: Cascade)
+  user             User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([competitionId, userId])
+}
+
+// --- 5. PROBLEM LANGUAGE CONFIGS (The BCNF Fix) ---
 model ProblemLanguage {
   id              String   @id @default(uuid())
   problemId       String
@@ -85,11 +127,12 @@ model ProblemLanguage {
   @@unique([problemId, language]) 
 }
 
-// --- 4. SUBMISSIONS TABLE (The Ledger) ---
+// --- 6. SUBMISSIONS TABLE (The Ledger) ---
 model Submission {
   id                String   @id @default(uuid())
   userId            String
   problemId         String
+  competitionId     String?
   language          String
   code              String   @db.Text
   status            String   
@@ -106,11 +149,13 @@ model Submission {
   // Relations
   user              User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   problem           Problem  @relation(fields: [problemId], references: [id], onDelete: Cascade)
+  competition       Competition? @relation(fields: [competitionId], references: [id], onDelete: SetNull)
 
   @@index([userId, problemId, language, createdAt(sort: Desc)])
+  @@index([competitionId])
 }
 
-// --- 5. ENUMS ---
+// --- 7. ENUMS ---
 enum Difficulty {
   EASY
   MEDIUM

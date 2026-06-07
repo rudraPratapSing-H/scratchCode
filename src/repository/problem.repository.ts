@@ -8,6 +8,19 @@ type ProblemSearchRow = {
 };
 
 export const ProblemRepository = {
+
+    async findProblemIdsByIds(problemIds: string[]): Promise<string[]> {
+        if (problemIds.length === 0) {
+            return [];
+        }
+
+        const rows = await prisma.problem.findMany({
+            where: { id: { in: problemIds } },
+            select: { id: true }
+        });
+
+        return rows.map((row) => row.id);
+    },
     
     async createProblemWithLanguages(problemData: any, languageConfigs: any[]) {
         // This is a Prisma "Nested Write". It is 100% atomic.

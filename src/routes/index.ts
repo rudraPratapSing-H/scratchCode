@@ -3,6 +3,7 @@ import express from 'express';
 import { SubmissionController } from '../controllers/submission.controller.ts';
 import { addProblem, getProblem, searchProblems, getProblemsGroupedByQuestionType } from '../controllers/problem.controller.ts';
 import { AuthController } from '../controllers/auth.controller.ts';
+import { createCompetition, registerForCompetition } from '../controllers/competition.controller.ts';
 import { requireAuth } from '../middlewares/requireAuth.ts';
 import { checkProblemAccess } from '../middlewares/checkProblemAccess.ts';
 import { OrganizationController } from '../controllers/organization.controller.ts';
@@ -19,6 +20,8 @@ export const setupRoutes = () => {
     router.post('/execute-public', requireAuth, SubmissionController.runPublicCode);
     router.get('/submissions/latest', requireAuth, SubmissionController.getLatestSubmissionByUser);
     router.post('/addProblem', requireAuth, checkProblemAccess('create'), addProblem);
+    router.post('/competitions', requireAuth, createCompetition);
+    router.post('/competitions/:competitionId/join', requireAuth, registerForCompetition);
     router.get('/problems/search', searchProblems);
     router.get('/problems/:problemId', requireAuth, checkProblemAccess('read'), getProblem);
     router.post('/register', AuthController.register);
