@@ -20,7 +20,6 @@ export const setupRoutes = () => {
     router.post('/execute-public', requireAuth, SubmissionController.runPublicCode);
     router.get('/submissions/latest', requireAuth, SubmissionController.getLatestSubmissionByUser);
     router.post('/addProblem', requireAuth, checkProblemAccess('create'), addProblem);
-   SZS
     router.get('/problems/search', searchProblems);
     router.get('/problems/:problemId', requireAuth, checkProblemAccess('read'), getProblem);
     router.post('/register', AuthController.register);
