@@ -105,6 +105,7 @@ async function startWorker() {
 
             logInfo(`Loaded submission ${submissionId}: language=${submission.language}, testCases=${Array.isArray(testCases) ? testCases.length : 0}`);
             const paramaterType = submission.problem.parameterTypes;
+            const parameterNames = submission.problem.parameterNames;
             logInfo(`Parameter types for submission ${submissionId}: ${JSON.stringify(paramaterType)}`);
 
             await WorkerService.updateStatus(submissionId, 'Running');
@@ -119,7 +120,8 @@ async function startWorker() {
                 submission.code,
                 config.driverCode,
                 safeTestCases,
-                paramaterType
+                paramaterType,
+                parameterNames
             );
 
             logInfo(`Generated execution payload for submission ${submissionId}`);

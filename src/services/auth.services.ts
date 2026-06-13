@@ -23,24 +23,41 @@ export const AuthService = {
         // 2. Hash the password
         const { hash, salt } = await HashUtil.hashPassword(password);
 
-        // 3. Generate OTP & Create the Pending Package
-        const otp = EmailUtil.generateOTP();
-        const pendingUser = { email, username, hash, salt, otp, organizationId: organizationId ?? null, role: role ?? 'USER' };
+        // 3. Email verification is temporarily bypassed.
+        // const otp = EmailUtil.generateOTP();
+        // const pendingUser = { email, username, hash, salt, otp, organizationId: organizationId ?? null, role: role ?? 'USER' };
+        // await redisClient.setEx(`pending:${email}`, 600, JSON.stringify(pendingUser));
+        // EmailUtil.sendOTPEmail(email, otp).catch(err => console.error("Email failed:", err));
 
-        // 4. Save to Redis with a 10-minute TTL (600 seconds)
-        await redisClient.setEx(`pending:${email}`, 600, JSON.stringify(pendingUser));
+        // 4. Create the user directly in Postgres
+        const user = await prisma.user.create({
+            data: {
+                email,
+                username,
+                password: hash,
+                salt,
+                organizationId: organizationId ?? null,
+                role: role ?? 'USER'
+            }
+        });
 
-        // 5. Fire off the email (don't await it so we respond instantly)
-        EmailUtil.sendOTPEmail(email, otp).catch(err => console.error("Email failed:", err));
+        // 5. Generate tokens immediately so the app works with email + password only
+        const accessToken = JwtUtil.generateToken({ userId: user.id, organizationId: user.organizationId, role: user.role }, '15m');
+        const refreshToken = JwtUtil.generateToken({ userId: user.id, organizationId: user.organizationId, role: user.role, generatedAt: Date.now() }, '7d');
 
-        // We return a message, NOT a user object.
-        return { message: "Please check your email for the verification code." };
+        await prisma.user.update({
+            where: { id: user.id },
+            data: { refreshToken }
+        });
+
+        return { user, accessToken, refreshToken, message: "User registered successfully." };
     },
 
     // ------------------------------------------------------------------------
     // 2. THE VIP PASS (Verification)
     // ------------------------------------------------------------------------
     async resendOTP(email: string) {
+        // Email verification is temporarily bypassed.
         // 1. Check if user is still pending
         const pendingDataStr = await redisClient.get(`pending:${email}`);
         if (!pendingDataStr) throw new Error("Registration session expired or does not exist. Please register again.");
@@ -63,6 +80,7 @@ export const AuthService = {
     },
 
     async verifyEmail(email: string, otpAttempt: string) {
+        // Email verification is temporarily bypassed.
         // 1. Check the Redis Waiting Room
         const pendingDataStr = await redisClient.get(`pending:${email}`);
         if (!pendingDataStr) throw new Error("OTP expired or invalid. Please register again.");

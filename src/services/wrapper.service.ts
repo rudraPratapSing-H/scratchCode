@@ -1,5 +1,5 @@
 export const WrapperService = {
-    wrapCode(language: string, userCode: string, driverCode: string, testCases: any[] | any, parameterType: string[]): string {
+    wrapCode(language: string, userCode: string, driverCode: string, testCases: any[] | any, parameterType: string[], parameterNames: string[]): string {
         if (!driverCode) return userCode;
 
         const parameterTypes = parameterType;
@@ -30,6 +30,13 @@ export const WrapperService = {
         };
 
         const resolveInputValues = (testCase: any): any[] => {
+            // === NEW: OPTION 2 (EXPLICIT EXTRACTION) ===
+            // If we have the names, map them directly to guarantee order!
+            if (parameterNames && parameterNames.length === parameterTypes.length) {
+                return parameterNames.map(name => testCase?.input[name]);
+            }
+
+            // === SMART FALLBACK (For older problems missing parameterNames) ===
             let inputValues = Array.isArray(testCase?.input) ? testCase.input : (testCase?.input ? Object.values(testCase.input) : []);
             const rawValues = Object.values(testCase?.input || {});
             const matchedValues: any[] = new Array(parameterTypes.length).fill(null);
@@ -81,7 +88,6 @@ export const WrapperService = {
 
             return inputValues;
         };
-
         // Helper: Map a value to its Java code representation based on type
         const javaValue = (type: string, value: any): string => {
             if (value === null || value === undefined) return 'null';

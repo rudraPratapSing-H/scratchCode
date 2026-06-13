@@ -23,8 +23,10 @@ model Organization {
 model Competition {
   id                        String   @id @default(uuid())
   title                     String
+  description               String?  @db.Text
   startTime                 DateTime
   endTime                   DateTime
+  organizationId            String   @default("")
   fullScreenMandatory       Boolean  @default(false)
   keyboardShortcutsBlocked   Boolean  @default(false)
 
@@ -79,6 +81,7 @@ model Problem {
   competitionLinks CompetitionProblem[]
   
   parameterTypes   String[]            // e.g., ["array", "integer"]           
+  parameterNames   String[]            // e.g., ["nums", "target"]
   questionTypes   String[]            // e.g., ["algorithm", "data structure"]
   @@index([title])
   @@index([organizationId])
@@ -89,6 +92,7 @@ model CompetitionProblem {
   id             String      @id @default(uuid())
   competitionId  String
   problemId      String
+  score          Int         @default(0)
 
   competition    Competition @relation(fields: [competitionId], references: [id], onDelete: Cascade)
   problem        Problem     @relation(fields: [problemId], references: [id], onDelete: Cascade)

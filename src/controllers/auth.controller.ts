@@ -8,33 +8,41 @@ export const AuthController = {
    // for autologin if valid refresh token exists, otherwise behaves like a normal login
 //    async autoLogin(req: Request, res: Response) {
         
-    // 1. REGISTER (Starts the OTP flow)
+    // 1. REGISTER (Email verification temporarily bypassed)
     async register(req: Request, res: Response) {
         try {
             const { email } = req.body;
             console.log("Registering user with email:", email);
             
-            // Call the service: this now generates an OTP and saves to Redis, NOT Postgres.
-            const response = await AuthService.registerUser(req.body);
-            
-            // Return the prompt to check email for OTP
-            res.status(200).json({ 
+            // Call the service: this now creates the user directly in Postgres.
+            const { user, accessToken, refreshToken, message } = await AuthService.registerUser(req.body);
+
+            // Bake the Refresh Token Cookie
+            res.cookie('refreshToken', refreshToken, {
+                httpOnly: true,
+                secure: process.env.NODE_ENV === 'production',
+                sameSite: 'strict',
+                maxAge: 7 * 24 * 60 * 60 * 1000 // 7 days
+            });
+
+            res.status(201).json({ 
                 success: true, 
-                message: response.message
+                message,
+                user: { id: user.id, username: user.username, email: user.email, organizationId: user.organizationId },
+                accessToken
             });
 
         } catch (error: any) {
             res.status(400).json({ success: false, message: error.message });
         }
     },
-    
-    // 1.5 VERIFY EMAIL (Completes registration & logs in)
+
+    // 1.5 VERIFY EMAIL (Temporarily bypassed)
     async verifyEmail(req: Request, res: Response) {
         try {
             const { email, otp } = req.body;
             
-            // Verify OTP and create the user in Postgres.
-            // This now returns the user and generated tokens!
+            // This flow is kept for later re-enable; register currently handles direct signup.
             const { user, accessToken, refreshToken } = await AuthService.verifyEmail(email, otp);
             
             // Bake the Refresh Token Cookie

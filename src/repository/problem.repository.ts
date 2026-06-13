@@ -34,6 +34,7 @@ export const ProblemRepository = {
                 publicTestCases: problemData.publicTestCases,
                 privateTestCases: problemData.privateTestCases,
                 parameterTypes: problemData.parameterTypes,
+                parameterNames: problemData.parameterNames,
                 // Automatically inserts into the ProblemLanguage table!
                 languageConfigs: {
                     create: languageConfigs

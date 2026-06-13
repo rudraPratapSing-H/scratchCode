@@ -8,7 +8,7 @@ type Response = express.Response;
 export const SubmissionController = {
     async submitCode(req: Request, res: Response) {
         try {
-            const { problemId, language, code } = req.body;
+            const { problemId, language, code, competitionId } = req.body;
             
             // We assume you have a requireAuth middleware that attaches the user ID to the request!
             // If you are testing without auth right now, you can hardcode a user ID.
@@ -34,6 +34,7 @@ export const SubmissionController = {
                     problemId,
                     language,
                     code,
+                    competitionId: competitionId || null,
                     status: "Pending" 
                 }
             });

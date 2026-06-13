@@ -16,9 +16,9 @@ const normalizeTestCase = (testCase: any) => ({
 
 const worker = new Worker('CodeSubmissions', async (job: Job) => {
     const { submissionId, isPublicRun, selectedTestCases } = job.data;
-    
+
     try {
-        
+
         console.log(`[WORKER] Job ${job.id} received for submission ${submissionId}`);
         // 1. FETCH (testCases comes directly from the problem's JSONB column)
         const { submission, config } = await WorkerService.getJobDetails(submissionId);
@@ -29,6 +29,7 @@ const worker = new Worker('CodeSubmissions', async (job: Job) => {
             : baseTestCases;
         console.log(`[WORKER] Loaded submission ${submissionId}: language=${submission.language}, testCases=${Array.isArray(testCases) ? testCases.length : 0}`);
         const paramaterType = submission.problem.parameterTypes;
+        const parameterNames = submission.problem.parameterNames;
         console.log(`[WORKER] Parameter types for submission ${submissionId}:`, paramaterType);
         await WorkerService.updateStatus(submissionId, "Running");
         console.log(`[WORKER] Submission ${submissionId} status updated to Running`);
@@ -42,7 +43,8 @@ const worker = new Worker('CodeSubmissions', async (job: Job) => {
             submission.code,
             config.driverCode,
             safeTestCases,
-            paramaterType
+            paramaterType,
+            parameterNames
         );
 
         console.log('[WORKER] Full code to run:', fullCodeToRun);

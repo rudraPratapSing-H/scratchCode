@@ -7,25 +7,55 @@ export const CompetitionRepository = {
         });
     },
 
+    async getCompetitionWithProblems(competitionId: string) {
+        return prisma.competition.findUnique({
+            where: { id: competitionId },
+            include: {
+                problems: {
+                    include: {
+                        problem: {
+                            select: { id: true, title: true }
+                        }
+                    }
+                }
+            }
+        });
+    },
+
+    async getAllCompetitionTitlesAndIds(organizationId: string) {
+        return prisma.competition.findMany({
+            where: { organizationId },
+            select: {
+                id: true,
+                title: true,
+                description: true,
+                startTime: true,
+                endTime: true,
+            }
+        });
+    },
+
     async createCompetition(data: {
         title: string;
+        description?: string;
         startTime: Date;
         endTime: Date;
         fullScreenMandatory: boolean;
         keyboardShortcutsBlocked: boolean;
+        organizationId?: string;
     }) {
         return prisma.competition.create({
             data
         });
     },
 
-    async linkProblemsToCompetition(competitionId: string, problemIds: string[]) {
-        if (problemIds.length === 0) {
+    async linkProblemsToCompetition(competitionId: string, problems: { problemId: string, score: number }[]) {
+        if (problems.length === 0) {
             return [];
         }
 
         return prisma.competitionProblem.createMany({
-            data: problemIds.map((problemId) => ({ competitionId, problemId }))
+            data: problems.map((p) => ({ competitionId, problemId: p.problemId, score: p.score }))
         });
     },
 
@@ -49,5 +79,36 @@ export const CompetitionRepository = {
                 score: 0
             }
         });
+    },
+
+    async getCompetitionLeaderboard(competitionId: string) {
+        return prisma.$queryRaw`
+            WITH FirstAcceptedSubmissions AS (
+                SELECT "userId", "problemId", MIN("createdAt") as "timeOfSubmission"
+                FROM "Submission"
+                WHERE "competitionId" = ${competitionId} AND "status" = 'Accepted'
+                GROUP BY "userId", "problemId"
+            ),
+            UserScores AS (
+                SELECT 
+                    fas."userId", 
+                    CAST(SUM(cp."score") AS INTEGER) as "totalScore", 
+                    MAX(fas."timeOfSubmission") as "latestSubmissionTime"
+                FROM FirstAcceptedSubmissions fas
+                JOIN "CompetitionProblem" cp 
+                  ON fas."problemId" = cp."problemId" AND cp."competitionId" = ${competitionId}
+                GROUP BY fas."userId"
+            )
+            SELECT 
+                u."username", 
+                us."userId", 
+                us."totalScore", 
+                us."latestSubmissionTime"
+            FROM UserScores us
+            JOIN "User" u ON us."userId" = u."id"
+            ORDER BY 
+                us."totalScore" DESC, 
+                us."latestSubmissionTime" ASC;
+        `;
     }
 };

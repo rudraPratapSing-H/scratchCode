@@ -4,6 +4,37 @@ import { CompetitionService } from '../services/competition.service.ts';
 type Request = express.Request;
 type Response = express.Response;
 
+export async function getCompetitionProblemTitles(req: Request, res: Response) {
+    try {
+        const { competitionId } = req.params;
+        if (!competitionId) {
+            return res.status(400).json({ success: false, message: 'competitionId parameter is required' });
+        }
+        const titles = await CompetitionService.getCompetitionProblemTitles(competitionId);
+        return res.status(200).json({ success: true, data: titles });
+    } catch (error: any) {
+        console.error('Get competition problem titles error', error?.message ?? error);
+        if (error?.message === 'Competition not found') {
+            return res.status(404).json({ success: false, message: error.message });
+        }
+        return res.status(500).json({ success: false, message: 'Internal server error' });
+    }
+}
+
+export async function getAllCompetitionsBasicInfo(req: Request, res: Response) {
+    try {
+        const organizationId = req.query.organizationId as string;
+        if (!organizationId) {
+            return res.status(400).json({ success: false, message: 'organizationId query parameter is required' });
+        }
+        const competitions = await CompetitionService.getAllCompetitionTitlesAndIds(organizationId);
+        return res.status(200).json({ success: true, data: competitions });
+    } catch (error: any) {
+        console.error('Get all competitions error', error?.message ?? error);
+        return res.status(500).json({ success: false, message: 'Internal server error' });
+    }
+}
+
 export async function createCompetition(req: Request, res: Response) {
     try {
         const result = await CompetitionService.createCompetition(req.body);
@@ -60,4 +91,22 @@ export async function registerForCompetition(req: Request, res: Response) {
     }
 }
 
-export const CompetitionController = { createCompetition, registerForCompetition };
+export async function getCompetitionLeaderboard(req: Request, res: Response) {
+    try {
+        const { competitionId } = req.params;
+        if (!competitionId) {
+            return res.status(400).json({ success: false, message: 'competitionId parameter is required' });
+        }
+
+        const leaderboard = await CompetitionService.getLeaderboard(competitionId);
+        return res.status(200).json({ success: true, data: leaderboard });
+    } catch (error: any) {
+        console.error('Get competition leaderboard error', error?.message ?? error);
+        if (error?.message === 'Competition not found') {
+            return res.status(404).json({ success: false, message: error.message });
+        }
+        return res.status(500).json({ success: false, message: 'Internal server error' });
+    }
+}
+
+export const CompetitionController = { createCompetition, registerForCompetition, getAllCompetitionsBasicInfo, getCompetitionProblemTitles, getCompetitionLeaderboard };
