@@ -89,6 +89,10 @@ async function startWorker() {
     });
 
     logInfo(`Connecting BullMQ worker to queue "${queueName}"...`);
+    
+    // Initialize the Warm Container Pools
+    const { ContainerPoolService } = await import('./src/services/container-pool.service.ts');
+    await ContainerPoolService.initializePools();
 
     const worker = new Worker(queueName, async (job: Job) => {
         const { submissionId, isPublicRun, selectedTestCases } = job.data;

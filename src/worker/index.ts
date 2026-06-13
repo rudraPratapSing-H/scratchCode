@@ -14,6 +14,11 @@ const normalizeTestCase = (testCase: any) => ({
     input: testCase?.input ?? testCase?.testCaseData?.input ?? testCase?.testCaseData ?? ''
 });
 
+// Initialize the Warm Container Pools asynchronously
+import('../services/container-pool.service.ts')
+    .then(({ ContainerPoolService }) => ContainerPoolService.initializePools())
+    .catch(err => console.error('[WORKER] Failed to init pools:', err));
+
 const worker = new Worker('CodeSubmissions', async (job: Job) => {
     const { submissionId, isPublicRun, selectedTestCases } = job.data;
 
