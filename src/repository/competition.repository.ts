@@ -81,6 +81,22 @@ export const CompetitionRepository = {
         });
     },
 
+    async incrementCheatingAttempts(competitionId: string, userId: string) {
+        return prisma.competitionParticipant.update({
+            where: {
+                competitionId_userId: {
+                    competitionId,
+                    userId
+                }
+            },
+            data: {
+                cheatingAttempts: {
+                    increment: 1
+                }
+            }
+        });
+    },
+
     async getCompetitionLeaderboard(competitionId: string) {
         return prisma.$queryRaw`
             WITH FirstAcceptedSubmissions AS (

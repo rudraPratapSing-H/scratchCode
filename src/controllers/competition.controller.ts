@@ -109,4 +109,28 @@ export async function getCompetitionLeaderboard(req: Request, res: Response) {
     }
 }
 
-export const CompetitionController = { createCompetition, registerForCompetition, getAllCompetitionsBasicInfo, getCompetitionProblemTitles, getCompetitionLeaderboard };
+export async function logCheatingAttempt(req: Request, res: Response) {
+    try {
+        const { competitionId } = req.params;
+        const authUser = (req as any).user;
+        
+        if (!competitionId) {
+            return res.status(400).json({ success: false, message: 'competitionId parameter is required' });
+        }
+
+        await CompetitionService.logCheatingAttempt(competitionId, authUser?.id);
+        
+        return res.status(200).json({ success: true, message: 'Cheating attempt logged successfully' });
+    } catch (error: any) {
+        console.error('Log cheating attempt error', error?.message ?? error);
+        if (error?.message === 'Unauthorized') {
+            return res.status(401).json({ success: false, message: error.message });
+        }
+        if (error?.message === 'Participant not found') {
+            return res.status(404).json({ success: false, message: error.message });
+        }
+        return res.status(500).json({ success: false, message: 'Internal server error' });
+    }
+}
+
+export const CompetitionController = { createCompetition, registerForCompetition, getAllCompetitionsBasicInfo, getCompetitionProblemTitles, getCompetitionLeaderboard, logCheatingAttempt };

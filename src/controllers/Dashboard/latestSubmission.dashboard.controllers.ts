@@ -50,7 +50,7 @@ export const LatestSubmissionController = {
              // Assuming you have user info in the request (e.g., from auth middleware)
             const latestSubmission = await LatestSubmissionService.getLatestSubmissionForProblemAndUser(problemId, userId, language);
             if (!latestSubmission) {
-                return res.status(404).json({ success: false, message: "No submissions found for this problem." });
+                return res.status(200).json({ success: true, submission: null, message: "No submissions found for this problem." });
             }
             res.status(200).json({ success: true, submission: latestSubmission });
         } catch (error: any) {

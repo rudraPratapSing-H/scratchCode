@@ -10,6 +10,7 @@ export const CompetitionService = {
             description: competition.description,
             startTime: competition.startTime,
             endTime: competition.endTime,
+            fullScreenMandatory: competition.fullScreenMandatory,
             problems: competition.problems.map(cp => ({
                 id: cp.problem.id,
                 title: cp.problem.title,
@@ -93,6 +94,18 @@ export const CompetitionService = {
 
         const participant = await CompetitionRepository.createParticipant(competitionId, userId);
         return { participant, alreadyRegistered: false };
+    },
+
+    async logCheatingAttempt(competitionId: string, userId: string) {
+        if (!competitionId) throw new Error('competitionId is required');
+        if (!userId) throw new Error('Unauthorized');
+
+        const participant = await CompetitionRepository.findParticipantByCompetitionAndUser(competitionId, userId);
+        if (!participant) {
+            throw new Error('Participant not found');
+        }
+
+        return CompetitionRepository.incrementCheatingAttempts(competitionId, userId);
     },
 
     async getLeaderboard(competitionId: string) {
