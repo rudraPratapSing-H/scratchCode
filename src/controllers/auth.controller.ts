@@ -20,9 +20,10 @@ export const AuthController = {
             // Bake the Refresh Token Cookie
             res.cookie('refreshToken', refreshToken, {
                 httpOnly: true,
-                secure: process.env.NODE_ENV === 'production',
-                sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
-                maxAge: 7 * 24 * 60 * 60 * 1000 // 7 days
+                secure: true,
+                sameSite: 'none',
+                maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
+                path: '/'
             });
 
             res.status(201).json({ 
@@ -48,9 +49,10 @@ export const AuthController = {
             // Bake the Refresh Token Cookie
             res.cookie('refreshToken', refreshToken, {
                 httpOnly: true,
-                secure: process.env.NODE_ENV === 'production',
-                sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
-                maxAge: 7 * 24 * 60 * 60 * 1000 // 7 days
+                secure: true,
+                sameSite: 'none',
+                maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
+                path: '/'
             });
 
             res.status(201).json({
@@ -76,9 +78,10 @@ export const AuthController = {
             // 🍪 Bake the Refresh Token Cookie (7 Days)
             res.cookie('refreshToken', refreshToken, {
                 httpOnly: true,
-                secure: process.env.NODE_ENV === 'production',
-                sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
-                maxAge: 7 * 24 * 60 * 60 * 1000 // 7 days in milliseconds
+                secure: true,
+                sameSite: 'none',
+                maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
+                path: '/'
             });
 
             // Send back standard user data for the React frontend state and the access token
@@ -95,7 +98,7 @@ export const AuthController = {
     // 3. LOGOUT (The Kill Switch)
     async logout(req: Request, res: Response) {
         // Clear the cookies from the browser
-        res.clearCookie('refreshToken');
+        res.clearCookie('refreshToken', { path: '/', secure: true, sameSite: 'none' });
         
         res.status(200).json({ success: true, message: "Logged out successfully." }); },
         

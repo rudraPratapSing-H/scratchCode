@@ -19,7 +19,13 @@ import('../services/container-pool.service.ts')
     .then(({ ContainerPoolService }) => ContainerPoolService.initializePools())
     .catch(err => console.error('[WORKER] Failed to init pools:', err));
 
+import { getSystemCapacity } from '../utils/system.ts';
+const { optimalConcurrency, cpuCores, totalMemoryMB, maxContainersByRam } = getSystemCapacity();
+console.log(`[WORKER] System Info: Cores=${cpuCores}, RAM=${totalMemoryMB.toFixed(0)}MB, Max by RAM=${maxContainersByRam}`);
+console.log(`[WORKER] Starting with dynamic concurrency: ${optimalConcurrency}`);
+
 const worker = new Worker('CodeSubmissions', async (job: Job) => {
+    // ... logic remains identical until end of function
     const { submissionId, isPublicRun, selectedTestCases } = job.data;
 
     try {
@@ -101,7 +107,7 @@ const worker = new Worker('CodeSubmissions', async (job: Job) => {
         await WorkerService.updateStatus(submissionId, finalStatus);
         console.log(`[WORKER] Submission ${submissionId} status updated to ${finalStatus}`);
     }
-}, { connection: redisConnection, concurrency: 5 });
+}, { connection: redisConnection, concurrency: optimalConcurrency });
 
 worker.on('ready', () => {
     console.log('[WORKER] Worker is ready and waiting for jobs');

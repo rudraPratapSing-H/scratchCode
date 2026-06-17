@@ -1,5 +1,6 @@
 import { execFile } from 'child_process';
 import { promisify } from 'util';
+import { getSystemCapacity } from '../utils/system.ts';
 
 const execFileAsync = promisify(execFile);
 
@@ -23,13 +24,13 @@ class ContainerPoolManager {
     };
 
     // Number of warm containers to keep ready per language
-    private readonly CAPACITY_PER_LANGUAGE = 2;
+    private readonly CAPACITY_PER_LANGUAGE = Math.max(1, Math.floor(getSystemCapacity().optimalConcurrency / SUPPORTED_LANGUAGES.length));
 
     // Use a high default memory limit for the warm pool (e.g. 512MB)
     private readonly POOL_MEMORY_LIMIT_MB = 512;
 
     async initializePools() {
-        console.log('[ContainerPool] Initializing warm container pools...');
+        console.log(`[ContainerPool] Initializing warm container pools... (Capacity per language: ${this.CAPACITY_PER_LANGUAGE})`);
         const initPromises: Promise<void>[] = [];
 
         for (const lang of SUPPORTED_LANGUAGES) {
