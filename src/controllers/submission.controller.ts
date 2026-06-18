@@ -118,6 +118,7 @@ export const SubmissionController = {
             const submission = await prisma.submission.findUnique({
                 where: { id },
                 select: {
+                    id: true,
                     status: true,
                     errorMessage: true,
                     testCasesPassed: true,
@@ -139,7 +140,8 @@ export const SubmissionController = {
                         submission.competitionId,
                         submission.problemId,
                         submission.userId,
-                        submission.status
+                        submission.status,
+                        submission.id
                     );
                 } catch (logError: any) {
                     console.error("CompetitionLog update error:", logError?.message);

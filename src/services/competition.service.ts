@@ -133,7 +133,7 @@ export const CompetitionService = {
         return CompetitionRepository.getCompetitionLeaderboard(competitionId);
     },
 
-    async updateCompetitionLogForSubmission(competitionId: string, problemId: string, userId: string, submissionStatus: string) {
+    async updateCompetitionLogForSubmission(competitionId: string, problemId: string, userId: string, submissionStatus: string, submissionId: string) {
         const [participant, compProblem] = await Promise.all([
             CompetitionRepository.findParticipantByCompetitionAndUser(competitionId, userId),
             CompetitionRepository.findCompetitionProblem(competitionId, problemId)
@@ -146,7 +146,8 @@ export const CompetitionService = {
             participant.id,
             compProblem.id,
             submissionStatus,
-            isAccepted ? compProblem.score : 0
+            isAccepted ? compProblem.score : 0,
+            submissionId
         );
 
         // Recalculate and update the participant's total score
@@ -167,7 +168,37 @@ export const CompetitionService = {
             title: log.problem.problem.title,
             status: log.status,
             score: log.score,
-            maxScore: log.problem.score
+            maxScore: log.problem.score,
+            timeTaken: log.timeTaken,
+            lastStartedAt: log.lastStartedAt
         }));
+    },
+
+    async startProblemTimer(competitionId: string, problemId: string, userId: string) {
+        if (!competitionId || !problemId) throw new Error('competitionId and problemId are required');
+        if (!userId) throw new Error('Unauthorized');
+
+        const [participant, compProblem] = await Promise.all([
+            CompetitionRepository.findParticipantByCompetitionAndUser(competitionId, userId),
+            CompetitionRepository.findCompetitionProblem(competitionId, problemId)
+        ]);
+
+        if (!participant || !compProblem) throw new Error('Participant or CompetitionProblem not found');
+
+        return CompetitionRepository.startProblemTimer(participant.id, compProblem.id);
+    },
+
+    async pauseProblemTimer(competitionId: string, problemId: string, userId: string) {
+        if (!competitionId || !problemId) throw new Error('competitionId and problemId are required');
+        if (!userId) throw new Error('Unauthorized');
+
+        const [participant, compProblem] = await Promise.all([
+            CompetitionRepository.findParticipantByCompetitionAndUser(competitionId, userId),
+            CompetitionRepository.findCompetitionProblem(competitionId, problemId)
+        ]);
+
+        if (!participant || !compProblem) throw new Error('Participant or CompetitionProblem not found');
+
+        return CompetitionRepository.pauseProblemTimer(participant.id, compProblem.id);
     }
 };

@@ -158,7 +158,7 @@ export const CompetitionRepository = {
         });
     },
 
-    async updateCompetitionLog(participantId: string, competitionProblemId: string, status: string, score: number) {
+    async updateCompetitionLog(participantId: string, competitionProblemId: string, status: string, score: number, submissionId: string) {
         return prisma.competitionLog.update({
             where: {
                 competitionParticipantId_competitionProblemId: {
@@ -168,8 +168,54 @@ export const CompetitionRepository = {
             },
             data: {
                 status,
-                score
+                score,
+                submissionId
             }
+        });
+    },
+
+    async startProblemTimer(participantId: string, competitionProblemId: string) {
+        return prisma.competitionLog.update({
+            where: {
+                competitionParticipantId_competitionProblemId: {
+                    competitionParticipantId: participantId,
+                    competitionProblemId: competitionProblemId
+                }
+            },
+            data: {
+                lastStartedAt: new Date()
+            }
+        });
+    },
+
+    async pauseProblemTimer(participantId: string, competitionProblemId: string) {
+        return prisma.$transaction(async (tx) => {
+            const log = await tx.competitionLog.findUnique({
+                where: {
+                    competitionParticipantId_competitionProblemId: {
+                        competitionParticipantId: participantId,
+                        competitionProblemId: competitionProblemId
+                    }
+                }
+            });
+
+            if (!log || !log.lastStartedAt) return log;
+
+            const now = new Date();
+            const elapsedSeconds = Math.floor((now.getTime() - log.lastStartedAt.getTime()) / 1000);
+
+            return tx.competitionLog.update({
+                where: {
+                    competitionParticipantId_competitionProblemId: {
+                        competitionParticipantId: participantId,
+                        competitionProblemId: competitionProblemId
+                    }
+                },
+                data: {
+                    timeTaken: log.timeTaken + elapsedSeconds,
+                    lastStartedAt: null
+                }
+            });
         });
     },
 
@@ -179,6 +225,8 @@ export const CompetitionRepository = {
             select: {
                 status: true,
                 score: true,
+                timeTaken: true,
+                lastStartedAt: true,
                 problem: {
                     select: {
                         problemId: true,

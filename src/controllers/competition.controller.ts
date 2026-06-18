@@ -162,4 +162,36 @@ export async function getParticipantLogs(req: Request, res: Response) {
     }
 }
 
-export const CompetitionController = { createCompetition, registerForCompetition, getAllCompetitionsBasicInfo, getCompetitionProblemTitles, getCompetitionLeaderboard, logCheatingAttempt, getParticipantLogs };
+export async function startProblemTimer(req: Request, res: Response) {
+    try {
+        const { competitionId, problemId } = req.params;
+        const authUser = (req as any).user;
+        
+        await CompetitionService.startProblemTimer(competitionId, problemId, authUser?.id);
+        
+        return res.status(200).json({ success: true, message: 'Timer started' });
+    } catch (error: any) {
+        console.error('Start timer error', error?.message ?? error);
+        if (error?.message === 'Unauthorized') return res.status(401).json({ success: false, message: error.message });
+        if (error?.message === 'Participant or CompetitionProblem not found') return res.status(404).json({ success: false, message: error.message });
+        return res.status(500).json({ success: false, message: 'Internal server error' });
+    }
+}
+
+export async function pauseProblemTimer(req: Request, res: Response) {
+    try {
+        const { competitionId, problemId } = req.params;
+        const authUser = (req as any).user;
+        
+        await CompetitionService.pauseProblemTimer(competitionId, problemId, authUser?.id);
+        
+        return res.status(200).json({ success: true, message: 'Timer paused' });
+    } catch (error: any) {
+        console.error('Pause timer error', error?.message ?? error);
+        if (error?.message === 'Unauthorized') return res.status(401).json({ success: false, message: error.message });
+        if (error?.message === 'Participant or CompetitionProblem not found') return res.status(404).json({ success: false, message: error.message });
+        return res.status(500).json({ success: false, message: 'Internal server error' });
+    }
+}
+
+export const CompetitionController = { createCompetition, registerForCompetition, getAllCompetitionsBasicInfo, getCompetitionProblemTitles, getCompetitionLeaderboard, logCheatingAttempt, getParticipantLogs, startProblemTimer, pauseProblemTimer };

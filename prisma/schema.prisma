@@ -182,6 +182,9 @@ model CompetitionLog {
   score                    Int                    @default(0)
   createdAt                DateTime               @default(now())
   updatedAt                DateTime               @updatedAt
+  timeTaken                Int                    @default(0)
+  lastStartedAt            DateTime?
+  submissionId             String?
 
   participant              CompetitionParticipant @relation(fields: [competitionParticipantId], references: [id], onDelete: Cascade)
   problem                  CompetitionProblem     @relation(fields: [competitionProblemId], references: [id], onDelete: Cascade)
