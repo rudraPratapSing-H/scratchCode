@@ -5,29 +5,28 @@ type Request = express.Request;
 type Response = express.Response;
 
 export const AuthController = {
-   // for autologin if valid refresh token exists, otherwise behaves like a normal login
-//    async autoLogin(req: Request, res: Response) {
-        
+    // for autologin if valid refresh token exists, otherwise behaves like a normal login
+    //    async autoLogin(req: Request, res: Response) {
+
     // 1. REGISTER (Email verification temporarily bypassed)
     async register(req: Request, res: Response) {
         try {
             const { email } = req.body;
             console.log("Registering user with email:", email);
-            
+
             // Call the service: this now creates the user directly in Postgres.
             const { user, accessToken, refreshToken, message } = await AuthService.registerUser(req.body);
 
             // Bake the Refresh Token Cookie
             res.cookie('refreshToken', refreshToken, {
                 httpOnly: true,
-                secure: true,
-                sameSite: 'none',
-                maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
-                path: '/'
+                secure: process.env.NODE_ENV === 'production',
+                sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
+                maxAge: 7 * 24 * 60 * 60 * 1000 // 7 days
             });
 
-            res.status(201).json({ 
-                success: true, 
+            res.status(201).json({
+                success: true,
                 message,
                 user: { id: user.id, username: user.username, email: user.email, organizationId: user.organizationId },
                 accessToken
@@ -42,17 +41,16 @@ export const AuthController = {
     async verifyEmail(req: Request, res: Response) {
         try {
             const { email, otp } = req.body;
-            
+
             // This flow is kept for later re-enable; register currently handles direct signup.
             const { user, accessToken, refreshToken } = await AuthService.verifyEmail(email, otp);
-            
+
             // Bake the Refresh Token Cookie
             res.cookie('refreshToken', refreshToken, {
                 httpOnly: true,
-                secure: true,
-                sameSite: 'none',
-                maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
-                path: '/'
+                secure: process.env.NODE_ENV === 'production',
+                sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
+                maxAge: 7 * 24 * 60 * 60 * 1000 // 7 days
             });
 
             res.status(201).json({
@@ -71,17 +69,16 @@ export const AuthController = {
         try {
             const { email, password, organizationId } = req.body;
             // organizationId is accepted from the client and included in req.body
-            
+
             // Ask the Service to verify credentials and generate tokens
             const { user, accessToken, refreshToken } = await AuthService.loginUser(email, password);
 
             // 🍪 Bake the Refresh Token Cookie (7 Days)
             res.cookie('refreshToken', refreshToken, {
                 httpOnly: true,
-                secure: true,
-                sameSite: 'none',
-                maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
-                path: '/'
+                secure: process.env.NODE_ENV === 'production',
+                sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
+                maxAge: 7 * 24 * 60 * 60 * 1000 // 7 days in milliseconds
             });
 
             // Send back standard user data for the React frontend state and the access token
@@ -98,10 +95,10 @@ export const AuthController = {
     // 3. LOGOUT (The Kill Switch)
     async logout(req: Request, res: Response) {
         // Clear the cookies from the browser
-        res.clearCookie('refreshToken', { path: '/', secure: true, sameSite: 'none' });
-        
-        res.status(200).json({ success: true, message: "Logged out successfully." }); },
-        
+        res.clearCookie('refreshToken', { path: '/', secure: process.env.NODE_ENV === 'production', sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax' });
+        res.status(200).json({ success: true, message: "Logged out successfully." });
+    },
+
     // 4. ME (Auto-Login / Session Check)
     async me(req: Request, res: Response) {
         try {
@@ -109,7 +106,7 @@ export const AuthController = {
             // Note: Since this endpoint is protected by the requireAuth middleware,
             // req.user has already been set and validated!
             const userId = (req as any).user.id;
-            
+
             // Assume we have a method to fetch a user by ID in AuthService
             const user = await AuthService.getUserById(userId);
 
@@ -125,7 +122,7 @@ export const AuthController = {
         } catch (error: any) {
             res.status(401).json({ success: false, message: error.message });
         }
-    }, 
+    },
     // writing a controller to handle regeneration of otp and deletion of previous one
     async resendOtp(req: Request, res: Response) {
         try {

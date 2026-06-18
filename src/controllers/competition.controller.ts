@@ -6,7 +6,7 @@ type Response = express.Response;
 
 export async function getCompetitionProblemTitles(req: Request, res: Response) {
     try {
-        const { competitionId } = req.params;
+        const competitionId = req.params.competitionId as string;
         if (!competitionId) {
             return res.status(400).json({ success: false, message: 'competitionId parameter is required' });
         }
@@ -64,6 +64,9 @@ export async function registerForCompetition(req: Request, res: Response) {
                 success: true,
                 message: 'Already registered for this competition',
                 participant: result.participant,
+                fullScreenMandatory: result.fullScreenMandatory,
+                startTime: result.startTime,
+                endTime: result.endTime
             });
         }
 
@@ -71,6 +74,9 @@ export async function registerForCompetition(req: Request, res: Response) {
             success: true,
             message: 'Registered for competition successfully',
             participant: result.participant,
+            fullScreenMandatory: result.fullScreenMandatory,
+            startTime: result.startTime,
+            endTime: result.endTime
         });
     } catch (error: any) {
         console.error('Register competition participant error', error?.message ?? error);
@@ -93,7 +99,7 @@ export async function registerForCompetition(req: Request, res: Response) {
 
 export async function getCompetitionLeaderboard(req: Request, res: Response) {
     try {
-        const { competitionId } = req.params;
+        const competitionId = req.params.competitionId as string;
         if (!competitionId) {
             return res.status(400).json({ success: false, message: 'competitionId parameter is required' });
         }
@@ -111,7 +117,7 @@ export async function getCompetitionLeaderboard(req: Request, res: Response) {
 
 export async function logCheatingAttempt(req: Request, res: Response) {
     try {
-        const { competitionId } = req.params;
+        const competitionId = req.params.competitionId as string;
         const authUser = (req as any).user;
         
         if (!competitionId) {
@@ -133,4 +139,27 @@ export async function logCheatingAttempt(req: Request, res: Response) {
     }
 }
 
-export const CompetitionController = { createCompetition, registerForCompetition, getAllCompetitionsBasicInfo, getCompetitionProblemTitles, getCompetitionLeaderboard, logCheatingAttempt };
+export async function getParticipantLogs(req: Request, res: Response) {
+    try {
+        const competitionId = req.params.competitionId as string;
+        const authUser = (req as any).user;
+
+        if (!competitionId) {
+            return res.status(400).json({ success: false, message: 'competitionId parameter is required' });
+        }
+
+        const logs = await CompetitionService.getParticipantLogs(competitionId, authUser?.id);
+        return res.status(200).json({ success: true, data: logs });
+    } catch (error: any) {
+        console.error('Get participant logs error', error?.message ?? error);
+        if (error?.message === 'Unauthorized') {
+            return res.status(401).json({ success: false, message: error.message });
+        }
+        if (error?.message === 'Participant not found') {
+            return res.status(404).json({ success: false, message: error.message });
+        }
+        return res.status(500).json({ success: false, message: 'Internal server error' });
+    }
+}
+
+export const CompetitionController = { createCompetition, registerForCompetition, getAllCompetitionsBasicInfo, getCompetitionProblemTitles, getCompetitionLeaderboard, logCheatingAttempt, getParticipantLogs };

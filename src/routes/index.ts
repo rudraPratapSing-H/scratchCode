@@ -31,6 +31,7 @@ export const setupRoutes = () => {
     router.get('/competitions/:competitionId/problems/titles', requireAuth, CompetitionController.getCompetitionProblemTitles);
     router.get('/competitions/:competitionId/leaderboard', requireAuth, CompetitionController.getCompetitionLeaderboard);
     router.post('/competitions/:competitionId/cheat', requireAuth, CompetitionController.logCheatingAttempt);
+    router.get('/competitions/:competitionId/logs', requireAuth, CompetitionController.getParticipantLogs);
     // routes for dashboard type shi    
     router.get('/dashboard/submissions/latest/:problemId', requireAuth, LatestSubmissionController.getLatestSubmission);
     router.get('/dashboard/submissions/all/:problemId', requireAuth, LatestSubmissionController.getAllSubmissions);

@@ -89,11 +89,23 @@ export const CompetitionService = {
 
         const existingParticipant = await CompetitionRepository.findParticipantByCompetitionAndUser(competitionId, userId);
         if (existingParticipant) {
-            return { participant: existingParticipant, alreadyRegistered: true };
+            return { 
+                participant: existingParticipant, 
+                alreadyRegistered: true, 
+                fullScreenMandatory: competition.fullScreenMandatory,
+                startTime: competition.startTime,
+                endTime: competition.endTime
+            };
         }
 
         const participant = await CompetitionRepository.createParticipant(competitionId, userId);
-        return { participant, alreadyRegistered: false };
+        return { 
+            participant, 
+            alreadyRegistered: false, 
+            fullScreenMandatory: competition.fullScreenMandatory,
+            startTime: competition.startTime,
+            endTime: competition.endTime
+        };
     },
 
     async logCheatingAttempt(competitionId: string, userId: string) {
@@ -119,5 +131,43 @@ export const CompetitionService = {
         }
 
         return CompetitionRepository.getCompetitionLeaderboard(competitionId);
+    },
+
+    async updateCompetitionLogForSubmission(competitionId: string, problemId: string, userId: string, submissionStatus: string) {
+        const [participant, compProblem] = await Promise.all([
+            CompetitionRepository.findParticipantByCompetitionAndUser(competitionId, userId),
+            CompetitionRepository.findCompetitionProblem(competitionId, problemId)
+        ]);
+
+        if (!participant || !compProblem) return;
+
+        const isAccepted = submissionStatus === 'Accepted';
+        await CompetitionRepository.updateCompetitionLog(
+            participant.id,
+            compProblem.id,
+            submissionStatus,
+            isAccepted ? compProblem.score : 0
+        );
+
+        // Recalculate and update the participant's total score
+        await CompetitionRepository.updateParticipantTotalScore(participant.id);
+    },
+
+    async getParticipantLogs(competitionId: string, userId: string) {
+        if (!competitionId) throw new Error('competitionId is required');
+        if (!userId) throw new Error('Unauthorized');
+
+        const participant = await CompetitionRepository.findParticipantByCompetitionAndUser(competitionId, userId);
+        if (!participant) throw new Error('Participant not found');
+
+        const logs = await CompetitionRepository.getLogsForParticipant(participant.id);
+
+        return logs.map(log => ({
+            problemId: log.problem.problemId,
+            title: log.problem.problem.title,
+            status: log.status,
+            score: log.score,
+            maxScore: log.problem.score
+        }));
     }
 };

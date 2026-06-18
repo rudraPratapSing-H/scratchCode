@@ -96,6 +96,7 @@ model CompetitionProblem {
 
   competition    Competition @relation(fields: [competitionId], references: [id], onDelete: Cascade)
   problem        Problem     @relation(fields: [problemId], references: [id], onDelete: Cascade)
+  logs           CompetitionLog[]
 
   @@unique([competitionId, problemId])
 }
@@ -110,6 +111,7 @@ model CompetitionParticipant {
 
   competition      Competition @relation(fields: [competitionId], references: [id], onDelete: Cascade)
   user             User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  logs             CompetitionLog[]
 
   @@unique([competitionId, userId])
 }
@@ -169,4 +171,20 @@ enum Difficulty {
 enum Role {
   USER
   ADMIN
+}
+
+// --- 8. COMPETITION LOGS ---
+model CompetitionLog {
+  id                       String                 @id @default(uuid())
+  competitionParticipantId String
+  competitionProblemId     String
+  status                   String
+  score                    Int                    @default(0)
+  createdAt                DateTime               @default(now())
+  updatedAt                DateTime               @updatedAt
+
+  participant              CompetitionParticipant @relation(fields: [competitionParticipantId], references: [id], onDelete: Cascade)
+  problem                  CompetitionProblem     @relation(fields: [competitionProblemId], references: [id], onDelete: Cascade)
+
+  @@unique([competitionParticipantId, competitionProblemId])
 }

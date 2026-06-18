@@ -71,13 +71,32 @@ export const CompetitionRepository = {
     },
 
     async createParticipant(competitionId: string, userId: string) {
-        return prisma.competitionParticipant.create({
-            data: {
-                competitionId,
-                userId,
-                cheatingAttempts: 0,
-                score: 0
+        return prisma.$transaction(async (tx) => {
+            const participant = await tx.competitionParticipant.create({
+                data: {
+                    competitionId,
+                    userId,
+                    cheatingAttempts: 0,
+                    score: 0
+                }
+            });
+
+            const competitionProblems = await tx.competitionProblem.findMany({
+                where: { competitionId }
+            });
+
+            if (competitionProblems.length > 0) {
+                await tx.competitionLog.createMany({
+                    data: competitionProblems.map((cp) => ({
+                        competitionParticipantId: participant.id,
+                        competitionProblemId: cp.id,
+                        status: 'NOT_ATTEMPTED',
+                        score: 0
+                    }))
+                });
             }
+
+            return participant;
         });
     },
 
@@ -126,5 +145,62 @@ export const CompetitionRepository = {
                 us."totalScore" DESC, 
                 us."latestSubmissionTime" ASC;
         `;
+    },
+
+    async findCompetitionProblem(competitionId: string, problemId: string) {
+        return prisma.competitionProblem.findUnique({
+            where: {
+                competitionId_problemId: {
+                    competitionId,
+                    problemId
+                }
+            }
+        });
+    },
+
+    async updateCompetitionLog(participantId: string, competitionProblemId: string, status: string, score: number) {
+        return prisma.competitionLog.update({
+            where: {
+                competitionParticipantId_competitionProblemId: {
+                    competitionParticipantId: participantId,
+                    competitionProblemId: competitionProblemId
+                }
+            },
+            data: {
+                status,
+                score
+            }
+        });
+    },
+
+    async getLogsForParticipant(participantId: string) {
+        return prisma.competitionLog.findMany({
+            where: { competitionParticipantId: participantId },
+            select: {
+                status: true,
+                score: true,
+                problem: {
+                    select: {
+                        problemId: true,
+                        score: true,
+                        problem: {
+                            select: { title: true }
+                        }
+                    }
+                }
+            }
+        });
+    },
+
+    async updateParticipantTotalScore(participantId: string) {
+        const logs = await prisma.competitionLog.findMany({
+            where: { competitionParticipantId: participantId },
+            select: { score: true }
+        });
+        const totalScore = logs.reduce((sum, log) => sum + log.score, 0);
+        return prisma.competitionParticipant.update({
+            where: { id: participantId },
+            data: { score: totalScore }
+        });
     }
 };

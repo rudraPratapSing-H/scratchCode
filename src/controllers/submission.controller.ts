@@ -1,6 +1,7 @@
 import express from 'express';
 import { prisma } from '../lib/prisma.ts'; 
 import { QueueService } from '../services/queue.service.ts';
+import { CompetitionService } from '../services/competition.service.ts';
  
 type Request = express.Request;
 type Response = express.Response;
@@ -114,19 +115,35 @@ export const SubmissionController = {
         try {
             const { id } = req.params;
 
-            // We use `select` to ONLY pull the status field, making this query lightning fast
             const submission = await prisma.submission.findUnique({
                 where: { id },
                 select: {
                     status: true,
                     errorMessage: true,
                     testCasesPassed: true,
-                    totalTestCases: true
+                    totalTestCases: true,
+                    competitionId: true,
+                    problemId: true,
+                    userId: true
                 }
             });
 
             if (!submission) {
                 return res.status(404).json({ success: false, message: "Submission not found" });
+            }
+
+            // If this is a competition submission and it has finished processing, update the CompetitionLog
+            if (submission.competitionId && submission.status !== 'Pending') {
+                try {
+                    await CompetitionService.updateCompetitionLogForSubmission(
+                        submission.competitionId,
+                        submission.problemId,
+                        submission.userId,
+                        submission.status
+                    );
+                } catch (logError: any) {
+                    console.error("CompetitionLog update error:", logError?.message);
+                }
             }
 
             let details: any = null;

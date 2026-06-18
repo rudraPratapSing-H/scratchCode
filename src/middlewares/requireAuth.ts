@@ -16,11 +16,11 @@ export async function requireAuth(req: Request, res: Response, next: NextFunctio
 
     if (accessToken) {
         try {
-                const decoded: any = JwtUtil.verifyToken(accessToken);
-                if (decoded?.userId) {
-                    (req as any).user = { id: decoded.userId, organizationId: decoded.organizationId ?? null, role: decoded.role ?? null };
-                    return next();
-                }
+            const decoded: any = JwtUtil.verifyToken(accessToken);
+            if (decoded?.userId) {
+                (req as any).user = { id: decoded.userId, organizationId: decoded.organizationId ?? null, role: decoded.role ?? null };
+                return next();
+            }
         } catch (_error: any) {
             // Access token invalid/expired, continue with refresh fallback.
         }
@@ -48,8 +48,8 @@ export async function requireAuth(req: Request, res: Response, next: NextFunctio
 
         res.cookie('refreshToken', refreshed.refreshToken, {
             httpOnly: true,
-            secure: true,
-            sameSite: 'none',
+            secure: process.env.NODE_ENV === 'production',
+            sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
             maxAge: 7 * 24 * 60 * 60 * 1000,
             path: '/'
         });
@@ -63,7 +63,7 @@ export async function requireAuth(req: Request, res: Response, next: NextFunctio
         return next();
     } catch (error: any) {
         console.error("Auth Refresh Error:", error.message);
-        
+
         return res.status(401).json({ success: false, message: "Unauthorized, i am the culprit" });
     }
 }
