@@ -22,7 +22,8 @@ export const AuthController = {
                 httpOnly: true,
                 secure: process.env.NODE_ENV === 'production',
                 sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
-                maxAge: 7 * 24 * 60 * 60 * 1000 // 7 days
+                maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
+                path: '/'
             });
 
             res.status(201).json({
@@ -45,13 +46,14 @@ export const AuthController = {
             // This flow is kept for later re-enable; register currently handles direct signup.
             const { user, accessToken, refreshToken } = await AuthService.verifyEmail(email, otp);
 
-            // Bake the Refresh Token Cookie
             res.cookie('refreshToken', refreshToken, {
                 httpOnly: true,
                 secure: process.env.NODE_ENV === 'production',
                 sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
-                maxAge: 7 * 24 * 60 * 60 * 1000 // 7 days
+                maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
+                path: '/'
             });
+
 
             res.status(201).json({
                 success: true,
@@ -78,7 +80,8 @@ export const AuthController = {
                 httpOnly: true,
                 secure: process.env.NODE_ENV === 'production',
                 sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
-                maxAge: 7 * 24 * 60 * 60 * 1000 // 7 days in milliseconds
+                maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days in milliseconds
+                path: '/'
             });
 
             // Send back standard user data for the React frontend state and the access token
