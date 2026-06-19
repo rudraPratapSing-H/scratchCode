@@ -1,3 +1,4 @@
+import 'dotenv/config';
 import express from 'express';
 import { JwtUtil } from '../utils/jwt.utils.ts';
 import { AuthService } from '../services/auth.services.ts';
