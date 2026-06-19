@@ -108,6 +108,7 @@ model CompetitionParticipant {
   userId           String
   cheatingAttempts Int         @default(0)
   score            Int         @default(0)
+  finished         Boolean     @default(false)
 
   competition      Competition @relation(fields: [competitionId], references: [id], onDelete: Cascade)
   user             User        @relation(fields: [userId], references: [id], onDelete: Cascade)

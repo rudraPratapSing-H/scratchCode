@@ -27,6 +27,7 @@ export const setupRoutes = () => {
     // competiton routes 
     router.post('/competitions', requireAuth, createCompetition);
     router.post('/competitions/:competitionId/register', requireAuth, registerForCompetition);
+    router.post('/competitions/:competitionId/finish', requireAuth, CompetitionController.finishCompetition);
     router.get('/competitions/titles', requireAuth, CompetitionController.getAllCompetitionsBasicInfo);
     router.get('/competitions/:competitionId/problems/titles', requireAuth, CompetitionController.getCompetitionProblemTitles);
     router.get('/competitions/:competitionId/leaderboard', requireAuth, CompetitionController.getCompetitionLeaderboard);
@@ -34,6 +35,10 @@ export const setupRoutes = () => {
     router.get('/competitions/:competitionId/logs', requireAuth, CompetitionController.getParticipantLogs);
     router.post('/competitions/:competitionId/problems/:problemId/time/start', requireAuth, CompetitionController.startProblemTimer);
     router.post('/competitions/:competitionId/problems/:problemId/time/pause', requireAuth, CompetitionController.pauseProblemTimer);
+    // admin routes
+    router.get('/competitions/admin/check', requireAuth, CompetitionController.checkAdminAccess);
+    router.get('/competitions/:competitionId/admin/participants', requireAuth, CompetitionController.getAdminParticipants);
+    router.get('/competitions/:competitionId/admin/participants/:participantId/details', requireAuth, CompetitionController.getAdminParticipantDetail);
     // routes for dashboard type shi    
     router.get('/dashboard/submissions/latest/:problemId', requireAuth, LatestSubmissionController.getLatestSubmission);
     router.get('/dashboard/submissions/all/:problemId', requireAuth, LatestSubmissionController.getAllSubmissions);

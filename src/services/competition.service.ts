@@ -94,7 +94,8 @@ export const CompetitionService = {
                 alreadyRegistered: true, 
                 fullScreenMandatory: competition.fullScreenMandatory,
                 startTime: competition.startTime,
-                endTime: competition.endTime
+                endTime: competition.endTime,
+                finished: existingParticipant.finished
             };
         }
 
@@ -104,7 +105,8 @@ export const CompetitionService = {
             alreadyRegistered: false, 
             fullScreenMandatory: competition.fullScreenMandatory,
             startTime: competition.startTime,
-            endTime: competition.endTime
+            endTime: competition.endTime,
+            finished: false
         };
     },
 
@@ -200,5 +202,54 @@ export const CompetitionService = {
         if (!participant || !compProblem) throw new Error('Participant or CompetitionProblem not found');
 
         return CompetitionRepository.pauseProblemTimer(participant.id, compProblem.id);
+    },
+
+    async finishCompetition(competitionId: string, userId: string) {
+        if (!competitionId) throw new Error('competitionId is required');
+        if (!userId) throw new Error('Unauthorized');
+
+        const participant = await CompetitionRepository.findParticipantByCompetitionAndUser(competitionId, userId);
+        if (!participant) {
+            throw new Error('Participant not found');
+        }
+
+        return CompetitionRepository.finishCompetitionParticipant(competitionId, userId);
+    },
+
+    async checkAdminAccess(userId: string) {
+        if (!userId) throw new Error('Unauthorized');
+
+        const user = await import('../repository/users.repository.ts').then(m => m.UserRepository.findUserById(userId));
+        if (!user) throw new Error('User not found');
+
+        return { isAdmin: user.role === 'ADMIN' };
+    },
+
+    async getAdminParticipants(competitionId: string, userId: string) {
+        if (!competitionId) throw new Error('competitionId is required');
+        if (!userId) throw new Error('Unauthorized');
+
+        // Verify admin
+        const user = await import('../repository/users.repository.ts').then(m => m.UserRepository.findUserById(userId));
+        if (!user || user.role !== 'ADMIN') throw new Error('Forbidden');
+
+        const competition = await CompetitionRepository.findCompetitionById(competitionId);
+        if (!competition) throw new Error('Competition not found');
+
+        return CompetitionRepository.getCompetitionParticipantsForAdmin(competitionId);
+    },
+
+    async getAdminParticipantDetail(competitionId: string, participantId: string, userId: string) {
+        if (!participantId) throw new Error('participantId is required');
+        if (!userId) throw new Error('Unauthorized');
+
+        // Verify admin
+        const user = await import('../repository/users.repository.ts').then(m => m.UserRepository.findUserById(userId));
+        if (!user || user.role !== 'ADMIN') throw new Error('Forbidden');
+
+        const detail = await CompetitionRepository.getParticipantDetailForAdmin(participantId);
+        if (!detail) throw new Error('Participant not found');
+
+        return detail;
     }
 };

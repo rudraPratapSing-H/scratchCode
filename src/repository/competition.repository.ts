@@ -250,5 +250,116 @@ export const CompetitionRepository = {
             where: { id: participantId },
             data: { score: totalScore }
         });
+    },
+
+    async finishCompetitionParticipant(competitionId: string, userId: string) {
+        return prisma.competitionParticipant.update({
+            where: {
+                competitionId_userId: {
+                    competitionId,
+                    userId
+                }
+            },
+            data: {
+                finished: true
+            }
+        });
+    },
+
+    async getCompetitionParticipantsForAdmin(competitionId: string) {
+        const participants = await prisma.competitionParticipant.findMany({
+            where: { competitionId },
+            include: {
+                user: {
+                    select: { id: true, username: true, email: true }
+                },
+                logs: {
+                    select: {
+                        status: true,
+                        score: true,
+                        timeTaken: true
+                    }
+                }
+            }
+        });
+
+        return participants.map(p => {
+            const totalScore = p.logs.reduce((sum, log) => sum + log.score, 0);
+            const totalTimeTaken = p.logs.reduce((sum, log) => sum + log.timeTaken, 0);
+            const questionsAccepted = p.logs.filter(log => log.status === 'Accepted').length;
+            const totalQuestions = p.logs.length;
+
+            return {
+                participantId: p.id,
+                userId: p.user.id,
+                username: p.user.username,
+                email: p.user.email,
+                score: totalScore,
+                cheatingAttempts: p.cheatingAttempts,
+                finished: p.finished,
+                totalTimeTaken,
+                questionsAccepted,
+                totalQuestions
+            };
+        });
+    },
+
+    async getParticipantDetailForAdmin(participantId: string) {
+        const participant = await prisma.competitionParticipant.findUnique({
+            where: { id: participantId },
+            include: {
+                user: {
+                    select: { id: true, username: true, email: true }
+                },
+                logs: {
+                    include: {
+                        problem: {
+                            include: {
+                                problem: {
+                                    select: { title: true }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        });
+
+        if (!participant) return null;
+
+        // For each log that has a submissionId, fetch the submission code
+        const logsWithCode = await Promise.all(
+            participant.logs.map(async (log) => {
+                let submittedCode: string | null = null;
+                let language: string | null = null;
+
+                if (log.submissionId) {
+                    const submission = await prisma.submission.findUnique({
+                        where: { id: log.submissionId },
+                        select: { code: true, language: true }
+                    });
+                    if (submission) {
+                        submittedCode = submission.code;
+                        language = submission.language;
+                    }
+                }
+
+                return {
+                    problemTitle: log.problem.problem.title,
+                    status: log.status,
+                    score: log.score,
+                    timeTaken: log.timeTaken,
+                    submittedCode,
+                    language
+                };
+            })
+        );
+
+        return {
+            userId: participant.user.id,
+            username: participant.user.username,
+            email: participant.user.email,
+            questions: logsWithCode
+        };
     }
 };
