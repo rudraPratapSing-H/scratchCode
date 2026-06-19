@@ -19,6 +19,7 @@ export const AuthController = {
             const { user, accessToken, refreshToken, message } = await AuthService.registerUser(req.body);
 
             // Bake the Refresh Token Cookie
+            console.log('Current NODE_ENV in register:', process.env.NODE_ENV);
             res.cookie('refreshToken', refreshToken, {
                 httpOnly: true,
                 secure: process.env.NODE_ENV === 'production',
@@ -77,6 +78,7 @@ export const AuthController = {
             const { user, accessToken, refreshToken } = await AuthService.loginUser(email, password);
 
             // 🍪 Bake the Refresh Token Cookie (7 Days)
+            console.log('Current NODE_ENV in login:', process.env.NODE_ENV);
             res.cookie('refreshToken', refreshToken, {
                 httpOnly: true,
                 secure: process.env.NODE_ENV === 'production',

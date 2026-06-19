@@ -47,6 +47,7 @@ export async function requireAuth(req: Request, res: Response, next: NextFunctio
 
         const refreshed = await AuthService.refreshSession(refreshToken, shouldRotate);
 
+        console.log('Current NODE_ENV in requireAuth:', process.env.NODE_ENV);
         res.cookie('refreshToken', refreshed.refreshToken, {
             httpOnly: true,
             secure: process.env.NODE_ENV === 'production',
