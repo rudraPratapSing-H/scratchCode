@@ -9,13 +9,7 @@ export const WrapperService = {
                 ? [testCases]
                 : [];
 
-        // 1. Inject the user's code
         let fullCode = driverCode;
-        if (fullCode.includes('{{USER_CODE}}')) {
-            fullCode = fullCode.replace('{{USER_CODE}}', userCode);
-        }
-
-
         // Helper function to recursively find and extract all arrays from an input object (for TreeNode/ListNode)
         const extractArrays = (obj: any): any[][] => {
             if (obj === null || obj === undefined) return [];
@@ -226,6 +220,11 @@ export const WrapperService = {
             if (fullCode.includes('{{TEST_CASES}}')) {
                 fullCode = fullCode.replace('{{TEST_CASES}}', buildTestCaseCollectionLiteral(normalizedTestCases));
             }
+        }
+
+        // 3. Inject the user's code last to prevent template injection attacks
+        if (fullCode.includes('{{USER_CODE}}')) {
+            fullCode = fullCode.replace('{{USER_CODE}}', userCode);
         }
 
         return fullCode;

@@ -53,6 +53,7 @@ export const DockerService = {
         try {
             if (containerId) {
                 // --- WARM START EXECUTION ---
+                // --- WARM START EXECUTION ---
                 // Setup directory and copy code into the running container
                 await execFileAsync('docker', ['exec', containerId, 'mkdir', '-p', '/usr/src/app']);
                 await execFileAsync('docker', ['cp', filePath, `${containerId}:/usr/src/app/${langConfig.file}`]);
@@ -84,7 +85,7 @@ export const DockerService = {
                     'run',
                     '--rm',
                     `--memory=${safeMemoryLimitMb}m`,
-                    '--cpus=0.5',
+                    '--cpus=1',
                     '--pids-limit=64',
                     '--cap-drop=ALL',
                     '--security-opt=no-new-privileges',

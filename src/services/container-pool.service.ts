@@ -27,7 +27,7 @@ class ContainerPoolManager {
     private readonly CAPACITY_PER_LANGUAGE = Math.max(1, Math.floor(getSystemCapacity().optimalConcurrency / SUPPORTED_LANGUAGES.length));
 
     // Use a high default memory limit for the warm pool (e.g. 512MB)
-    private readonly POOL_MEMORY_LIMIT_MB = 512;
+    private readonly POOL_MEMORY_LIMIT_MB = 256;
 
     async initializePools() {
         console.log(`[ContainerPool] Initializing warm container pools... (Capacity per language: ${this.CAPACITY_PER_LANGUAGE})`);
@@ -55,7 +55,7 @@ class ContainerPoolManager {
             '-d', // detached mode
             '--rm', // clean up when killed
             `--memory=${this.POOL_MEMORY_LIMIT_MB}m`,
-            '--cpus=0.5',
+            '--cpus=1',
             '--pids-limit=64',
             '--cap-drop=ALL',
             '--security-opt=no-new-privileges',
