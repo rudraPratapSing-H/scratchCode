@@ -1,4 +1,4 @@
-﻿# Exam Platform Backend
+# Exam Platform Backend
 
 A distributed, theoretically infinitely scalable backend system designed to securely compile and execute untrusted user code across multiple programming languages. Built with a decoupled architecture, it uses message queues to handle high-volume code submissions asynchronously. This mirrors the exact infrastructure of production-grade competitive programming platforms, allowing the execution engine to scale horizontally without bottlenecks.
 
@@ -19,7 +19,8 @@ The system is divided into two main isolated components that communicate exclusi
 
 **Worker Nodes (Consumers)**
 - Independent execution servers that continuously poll the Redis queue
-- Upon receiving a job, spins up an isolated Docker container
+- Maintains a pool of pre-warmed Docker containers for near-instant execution
+- Upon receiving a job, pulls a running container from the warm pool (falling back to cold start if empty)
 - Injects user code and executes it against test cases
 - Updates the database with the final verdict
 - Horizontally scalable: run 1 or 1,000 workers simultaneously
@@ -49,7 +50,7 @@ Fully configured to execute:
 ### Secure Isolation
 - Untrusted code is executed inside ephemeral Docker containers (`--rm`)
 - Network access is disabled (`--network none`)
-- Read-only filesystem to prevent malicious file operations
+- Extreme OS restrictions using `--cap-drop=ALL` and `--security-opt=no-new-privileges`
 
 ### Resource Constraints
 - Hard limits on CPU execution time (preventing infinite loops/TLE)
@@ -81,7 +82,7 @@ Fully configured to execute:
 │                          ↓                                       │
 │  4. SANDBOX                                                      │
 │     Worker writes code to a temporary file                       │
-│     Triggers docker run with strict memory and time limits       │
+│     Acquires a pre-warmed Docker container and injects code      │
 │                          ↓                                       │
 │  5. GRADE                                                        │
 │     Container stdout and stderr are parsed                       │
