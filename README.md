@@ -54,6 +54,35 @@ flowchart LR
 - Updates the database with the final verdict
 - Horizontally scalable: run 1 or 1,000 workers simultaneously
 
+### How It Scales
+
+The system achieves horizontal scaling through its decoupled producer-consumer architecture. The API server and worker nodes are completely independent — they share nothing except a Redis queue and a database connection.
+
+```
+                         ┌─────────────────────┐
+                         │    Redis Queue       │
+                         │    (Upstash)         │
+                         └──────┬──┬──┬────────┘
+                                │  │  │
+                 ┌──────────────┘  │  └──────────────┐
+                 ▼                 ▼                  ▼
+        ┌────────────────┐ ┌────────────────┐ ┌────────────────┐
+        │  Worker VM #1  │ │  Worker VM #2  │ │  Worker VM #N  │
+        │  (4 vCPU)      │ │  (4 vCPU)      │ │  (4 vCPU)      │
+        │  Concurrency: 3│ │  Concurrency: 3│ │  Concurrency: 3│
+        │  Docker 🐳     │ │  Docker 🐳     │ │  Docker 🐳     │
+        └────────────────┘ └────────────────┘ └────────────────┘
+```
+
+**Why this works:**
+- The API server only enqueues jobs — it never executes code, so it stays fast under any load
+- Each worker auto-detects its CPU cores and RAM, then sets its own concurrency limit dynamically
+- Workers are stateless — spin up a new VM, point it at the same Redis URL, and it immediately starts processing jobs
+- No code changes, no config changes, no redeployments — just add more machines
+- If a worker crashes, its unfinished jobs return to the queue and get picked up by another worker
+
+**Current deployment:** 1 Google Cloud VM running both the API and a single worker. To handle 10x the load, deploy 9 more worker VMs — each one pulls from the same Upstash Redis queue and writes results to the same Supabase PostgreSQL database.
+
 ---
 
 ## Tech Stack
