@@ -2,6 +2,9 @@
 
 A distributed, theoretically infinitely scalable backend system designed to securely compile and execute untrusted user code across multiple programming languages. Built with a decoupled architecture, it uses message queues to handle high-volume code submissions asynchronously. This mirrors the exact infrastructure of production-grade competitive programming platforms, allowing the execution engine to scale horizontally without bottlenecks.
 
+🔗 **Live Demo:** [rce-frontend-ivory.vercel.app](https://rce-frontend-ivory.vercel.app)
+💻 **Frontend Repo:** [github.com/rudraPratapSing-H/RCE_frontend](https://github.com/rudraPratapSing-H/RCE_frontend)
+
 ---
 
 ## System Architecture
@@ -58,21 +61,7 @@ flowchart LR
 
 The system achieves horizontal scaling through its decoupled producer-consumer architecture. The API server and worker nodes are completely independent — they share nothing except a Redis queue and a database connection.
 
-```
-                         ┌─────────────────────┐
-                         │    Redis Queue       │
-                         │    (Upstash)         │
-                         └──────┬──┬──┬────────┘
-                                │  │  │
-                 ┌──────────────┘  │  └──────────────┐
-                 ▼                 ▼                  ▼
-        ┌────────────────┐ ┌────────────────┐ ┌────────────────┐
-        │  Worker VM #1  │ │  Worker VM #2  │ │  Worker VM #N  │
-        │  (4 vCPU)      │ │  (4 vCPU)      │ │  (4 vCPU)      │
-        │  Concurrency: 3│ │  Concurrency: 3│ │  Concurrency: 3│
-        │  Docker 🐳     │ │  Docker 🐳     │ │  Docker 🐳     │
-        └────────────────┘ └────────────────┘ └────────────────┘
-```
+![Horizontal Scaling Architecture](docs/images/horizontal-scaling.png)
 
 **Why this works:**
 - The API server only enqueues jobs — it never executes code, so it stays fast under any load
@@ -124,34 +113,7 @@ Fully configured to execute:
 
 ## The Execution Lifecycle
 
-```
-┌──────────────────────────────────────────────────────────────────┐
-│                                                                  │
-│  1. SUBMIT                                                       │
-│     Client sends source code and problem ID to the API           │
-│                          ↓                                       │
-│  2. QUEUE                                                        │
-│     API creates a Pending record in PostgreSQL                   │
-│     Pushes submissionId to Redis/BullMQ                          │
-│                          ↓                                       │
-│  3. PROCESS                                                      │
-│     Worker picks up the job from the queue                       │
-│     Fetches problem's boilerplate and test cases from DB         │
-│                          ↓                                       │
-│  4. SANDBOX                                                      │
-│     Worker writes code to a temporary file                       │
-│     Acquires a pre-warmed Docker container and injects code      │
-│                          ↓                                       │
-│  5. GRADE                                                        │
-│     Container stdout and stderr are parsed                       │
-│     Worker catches compilation errors, runtime crashes, TLE      │
-│                          ↓                                       │
-│  6. RESOLVE                                                      │
-│     Worker updates PostgreSQL record with final verdict          │
-│     Status: Accepted, Runtime Error, TLE, Wrong Answer, etc.     │
-│                                                                  │
-└──────────────────────────────────────────────────────────────────┘
-```
+![Automated Code Submission and Grading Workflow](docs/images/execution-lifecycle.png)
 
 ---
 
