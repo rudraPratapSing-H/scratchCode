@@ -9,66 +9,32 @@ A distributed, theoretically infinitely scalable backend system designed to secu
 The system is divided into two main isolated components that communicate exclusively via a message broker. This architecture is infinitely scalable: to handle increased load, additional worker nodes can be provisioned and attached to the queue without any modifications to the core API or database.
 
 ```mermaid
-flowchart TB
-    subgraph CLIENT["👤 Client Browser"]
-        Browser["React SPA"]
+flowchart LR
+    subgraph Vercel
+        Frontend[React + Vite SPA]
     end
 
-    subgraph VERCEL["☁️ Vercel"]
-        Frontend["React + Vite Frontend\n(Static Assets + SPA)"]
+    subgraph Google Cloud VM
+        API[Express.js API - Producer]
+        Worker[BullMQ Worker - Consumer]
+        Docker[Docker Sandbox Containers]
     end
 
-    subgraph GCP["🖥️ Google Cloud VM"]
-        subgraph API_PROCESS["Express.js API (Producer)"]
-            API["REST API Server\nPort 8000"]
-            AuthMW["Auth Middleware\nJWT + Google OAuth"]
-            QueueProducer["BullMQ Producer\n(Enqueues Jobs)"]
-        end
-
-        subgraph WORKER_PROCESS["Node.js Worker (Consumer)"]
-            Worker["BullMQ Worker\n(Polls & Processes Jobs)"]
-            ContainerPool["Warm Container Pool\n(Pre-warmed Docker Containers)"]
-            Grader["Grading Service\n(Evaluates Output)"]
-        end
-
-        subgraph DOCKER["🐳 Docker Engine"]
-            NodeContainer["node:18-alpine"]
-            PythonContainer["python:3.10-alpine"]
-            JavaContainer["eclipse-temurin:17"]
-            CppContainer["gcc:12"]
-        end
+    subgraph Upstash
+        Redis[(Redis Queue)]
     end
 
-    subgraph UPSTASH["⚡ Upstash"]
-        Redis[("Redis\n(Message Broker + Job Queue)")]
+    subgraph Supabase
+        DB[(PostgreSQL)]
     end
 
-    subgraph SUPABASE["🐘 Supabase"]
-        PostgreSQL[("PostgreSQL\n(Prisma ORM)")]
-    end
-
-    Browser -->|"HTTPS"| Frontend
-    Frontend -->|"REST API Calls\n(withCredentials)"| API
-    API --> AuthMW
-    AuthMW --> QueueProducer
-    QueueProducer -->|"Enqueue\nSubmission Job"| Redis
-    Redis -->|"Dequeue\nSubmission Job"| Worker
-    Worker --> ContainerPool
-    ContainerPool -->|"Acquire Container\n(Warm Start)"| DOCKER
-    Worker -->|"Cold Start Fallback\n(docker run --rm)"| DOCKER
-    DOCKER -->|"stdout / stderr"| Grader
-    API -->|"Read / Write\nSubmissions, Problems"| PostgreSQL
-    Worker -->|"Update Verdict\n(Accepted, WA, TLE...)"| PostgreSQL
-    Grader -->|"Final Status"| Worker
-
-    style CLIENT fill:#1a1a2e,stroke:#e94560,color:#eee
-    style VERCEL fill:#0a0a1a,stroke:#00d2ff,color:#eee
-    style GCP fill:#0a0a1a,stroke:#34a853,color:#eee
-    style API_PROCESS fill:#112240,stroke:#64ffda,color:#ccd6f6
-    style WORKER_PROCESS fill:#112240,stroke:#f9a825,color:#ccd6f6
-    style DOCKER fill:#112240,stroke:#2196f3,color:#ccd6f6
-    style UPSTASH fill:#0a0a1a,stroke:#00e676,color:#eee
-    style SUPABASE fill:#0a0a1a,stroke:#3ecf8e,color:#eee
+    Frontend -- REST API --> API
+    API -- Enqueue Job --> Redis
+    Redis -- Dequeue Job --> Worker
+    Worker -- Execute Code --> Docker
+    Docker -- stdout/stderr --> Worker
+    API -- Read/Write --> DB
+    Worker -- Update Verdict --> DB
 ```
 
 ### Components
