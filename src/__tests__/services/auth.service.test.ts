@@ -84,29 +84,27 @@ describe('AuthService', () => {
             role: 'USER',
         };
 
-        it('should register a new user and return tokens', async () => {
+        it('should store pending user in Redis and send OTP email', async () => {
             mockPrismaUser.findUnique.mockResolvedValue(null); // no existing user
             mockHashUtil.hashPassword.mockResolvedValue({ hash: 'hashed-pw', salt: 'salt-1' });
-
-            const createdUser = {
-                id: 'u-1', email: registrationData.email, username: 'alice',
-                organizationId: 'org-1', role: 'USER',
-            };
-            mockPrismaUser.create.mockResolvedValue(createdUser);
-            mockJwtUtil.generateToken
-                .mockReturnValueOnce('access-token-123')
-                .mockReturnValueOnce('refresh-token-456');
-            mockPrismaUser.update.mockResolvedValue({ ...createdUser, refreshToken: 'refresh-token-456' });
+            mockEmailUtil.generateOTP.mockReturnValue('123456');
+            mockRedisClient.setEx.mockResolvedValue('OK');
+            mockEmailUtil.sendOTPEmail.mockResolvedValue(true);
 
             const result = await AuthServiceMod.registerUser(registrationData);
 
             expect(mockPrismaUser.findUnique).toHaveBeenCalledWith({ where: { email: registrationData.email } });
             expect(mockHashUtil.hashPassword).toHaveBeenCalledWith(registrationData.password);
-            expect(mockPrismaUser.create).toHaveBeenCalledTimes(1);
-            expect(mockJwtUtil.generateToken).toHaveBeenCalledTimes(2);
-            expect(result.accessToken).toBe('access-token-123');
-            expect(result.refreshToken).toBe('refresh-token-456');
-            expect(result.user).toEqual(createdUser);
+            expect(mockEmailUtil.generateOTP).toHaveBeenCalledTimes(1);
+            expect(mockRedisClient.setEx).toHaveBeenCalledWith(
+                `pending:${registrationData.email}`,
+                600,
+                expect.any(String)
+            );
+            expect(mockEmailUtil.sendOTPEmail).toHaveBeenCalledWith(registrationData.email, '123456');
+            // No user should be created in Postgres during registration
+            expect(mockPrismaUser.create).not.toHaveBeenCalled();
+            expect(result.message).toBe('OTP sent to your email. Please verify to complete registration.');
         });
 
         it('should throw if the email is already taken', async () => {

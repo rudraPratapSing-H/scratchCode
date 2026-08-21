@@ -15,24 +15,12 @@ export const AuthController = {
             const { email } = req.body;
             console.log("Registering user with email:", email);
 
-            // Call the service: this now creates the user directly in Postgres.
-            const { user, accessToken, refreshToken, message } = await AuthService.registerUser(req.body);
+            // Call the service: this stores the pending user in Redis and sends an OTP email.
+            const { message } = await AuthService.registerUser(req.body);
 
-            // Bake the Refresh Token Cookie
-            console.log('Current NODE_ENV in register:', process.env.NODE_ENV);
-            res.cookie('refreshToken', refreshToken, {
-                httpOnly: true,
-                secure: process.env.NODE_ENV === 'production',
-                sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
-                maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
-                path: '/'
-            });
-
-            res.status(201).json({
+            res.status(200).json({
                 success: true,
-                message,
-                user: { id: user.id, username: user.username, email: user.email, organizationId: user.organizationId },
-                accessToken
+                message
             });
 
         } catch (error: any) {
