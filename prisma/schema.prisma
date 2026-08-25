@@ -179,16 +179,17 @@ model CompetitionLog {
   id                       String                 @id @default(uuid())
   competitionParticipantId String
   competitionProblemId     String
-  status                   String
+  status                   String                 @default("Not Attempted")
   score                    Int                    @default(0)
-  createdAt                DateTime               @default(now())
-  updatedAt                DateTime               @updatedAt
   timeTaken                Int                    @default(0)
   lastStartedAt            DateTime?
   submissionId             String?
-
-  participant              CompetitionParticipant @relation(fields: [competitionParticipantId], references: [id], onDelete: Cascade)
-  problem                  CompetitionProblem     @relation(fields: [competitionProblemId], references: [id], onDelete: Cascade)
+  activity                 String                 @default("inactive")
+  code                     String?
+  createdAt                DateTime               @default(now())
+  updatedAt                DateTime               @updatedAt
+  participant              CompetitionParticipant @relation(fields: [competitionParticipantId], references: [id])
+  problem                  CompetitionProblem     @relation(fields: [competitionProblemId], references: [id])
 
   @@unique([competitionParticipantId, competitionProblemId])
 }

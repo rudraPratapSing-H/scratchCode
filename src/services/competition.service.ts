@@ -1,6 +1,7 @@
 import { CompetitionRepository } from '../repository/competition.repository.ts';
 import { ProblemRepository } from '../repository/problem.repository.ts';
 
+
 export const CompetitionService = {
     async getCompetitionProblemTitles(competitionId: string) {
         if (!competitionId) throw new Error('competitionId is required');
@@ -89,9 +90,9 @@ export const CompetitionService = {
 
         const existingParticipant = await CompetitionRepository.findParticipantByCompetitionAndUser(competitionId, userId);
         if (existingParticipant) {
-            return { 
-                participant: existingParticipant, 
-                alreadyRegistered: true, 
+            return {
+                participant: existingParticipant,
+                alreadyRegistered: true,
                 fullScreenMandatory: competition.fullScreenMandatory,
                 startTime: competition.startTime,
                 endTime: competition.endTime,
@@ -100,9 +101,9 @@ export const CompetitionService = {
         }
 
         const participant = await CompetitionRepository.createParticipant(competitionId, userId);
-        return { 
-            participant, 
-            alreadyRegistered: false, 
+        return {
+            participant,
+            alreadyRegistered: false,
             fullScreenMandatory: competition.fullScreenMandatory,
             startTime: competition.startTime,
             endTime: competition.endTime,
@@ -251,5 +252,30 @@ export const CompetitionService = {
         if (!detail) throw new Error('Participant not found');
 
         return detail;
-    }
+    },
+
+    async getCompetitionAnalytics(competitionId: string, userId: string) {
+    if (!competitionId) throw new Error('competitionId is required');
+    if (!userId) throw new Error('Unauthorized');
+
+    // Verify admin
+    const user = await import('../repository/users.repository.ts').then(m => m.UserRepository.findUserById(userId));
+    if (!user || user.role !== 'ADMIN') throw new Error('Forbidden');
+
+    return CompetitionRepository.getCompetitionAnalytics(competitionId);
+},
+
+    async updateActivity(competitionId: string, problemId: string, userId: string, activity: string, code ?: string) {
+    if (!competitionId || !problemId) throw new Error('competitionId and problemId are required');
+    if (!userId) throw new Error('Unauthorized');
+
+    const [participant, compProblem] = await Promise.all([
+        CompetitionRepository.findParticipantByCompetitionAndUser(competitionId, userId),
+        CompetitionRepository.findCompetitionProblem(competitionId, problemId)
+    ]);
+
+    if (!participant || !compProblem) throw new Error('Participant or CompetitionProblem not found');
+
+    return CompetitionRepository.updateActivity(participant.id, compProblem.id, activity, code);
+},
 };

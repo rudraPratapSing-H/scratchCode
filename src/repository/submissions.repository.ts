@@ -18,7 +18,7 @@ type SubmissionRetrivalObject = {
 export const SubmissionsRepository = {
     // prisma query to get the latest submission for a given problem and user and language, ordered by createdAt descending  
     async getLatestSubmission(problemId: string, userId: string, language: string): Promise<SubmissionRetrivalObject | null> {
-        const submission = await prisma.submission.findFirst({
+        return await prisma.submission.findFirst({
             where: {
                 problemId,
                 userId,
@@ -28,7 +28,7 @@ export const SubmissionsRepository = {
                 createdAt: 'desc'
             }
         });
-        return submission as SubmissionRetrivalObject | null;
+        // return submission as SubmissionRetrivalObject | null;
     },
 
     // prisma query to retrive unique accepted problems for a user for all languages and all difficulty levels

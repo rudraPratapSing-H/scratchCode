@@ -21,7 +21,7 @@ export const DockerService = {
         code: string, 
         memoryLimitMb: number, 
         timeLimitMs: number
-    ): Promise<{ stdout: string, stderr: string }> {
+    ): Promise<{ stdout: string, stderr: string, executionTimeMs: number, memoryUsedKb: number }> {
         
         const submissionDir = path.join(__dirname, '..', 'worker', 'temp', submissionId);
         
@@ -53,7 +53,6 @@ export const DockerService = {
         try {
             if (containerId) {
                 // --- WARM START EXECUTION ---
-                // --- WARM START EXECUTION ---
                 // Setup directory and copy code into the running container
                 await execFileAsync('docker', ['exec', containerId, 'mkdir', '-p', '/usr/src/app']);
                 await execFileAsync('docker', ['cp', filePath, `${containerId}:/usr/src/app/${langConfig.file}`]);
@@ -68,11 +67,25 @@ export const DockerService = {
                     runCommand
                 ];
 
+                const startTime = Date.now();
                 const { stdout, stderr } = await execFileAsync('docker', dockerArgs, {
                     timeout: safeTimeLimitMs,
                     windowsHide: true
                 });
-                return { stdout, stderr };
+                const executionTimeMs = Date.now() - startTime;
+
+                // Capture peak memory usage from the warm container
+                let memoryUsedKb = 0;
+                try {
+                    const statsResult = await execFileAsync('docker', [
+                        'stats', '--no-stream', '--format', '{{.MemUsage}}', containerId
+                    ], { timeout: 5000 });
+                    memoryUsedKb = this.parseMemoryUsage(statsResult.stdout);
+                } catch {
+                    // Stats may fail if container is already stopped; default to 0
+                }
+
+                return { stdout, stderr, executionTimeMs, memoryUsedKb };
 
             } else {
                 // --- COLD START FALLBACK ---
@@ -81,9 +94,11 @@ export const DockerService = {
                     throw new Error(`Invalid memory limit: ${memoryLimitMb}`);
                 }
 
+                // Use --name so we can query stats before --rm cleans up
+                const containerName = `sub-${submissionId}-${Date.now()}`;
                 const dockerArgs = [
                     'run',
-                    '--rm',
+                    '--name', containerName,
                     `--memory=${safeMemoryLimitMb}m`,
                     '--cpus=1',
                     '--pids-limit=64',
@@ -101,11 +116,34 @@ export const DockerService = {
                     runCommand
                 ];
 
+                const startTime = Date.now();
                 const { stdout, stderr } = await execFileAsync('docker', dockerArgs, {
                     timeout: safeTimeLimitMs,
                     windowsHide: true
                 });
-                return { stdout, stderr };
+                const executionTimeMs = Date.now() - startTime;
+
+                // Capture peak memory from container inspect (works after container stops)
+                let memoryUsedKb = 0;
+                try {
+                    const inspectResult = await execFileAsync('docker', [
+                        'inspect', '--format', '{{.HostConfig.Memory}}', containerName
+                    ], { timeout: 5000 });
+                    // Try docker stats first for a running container, fallback to 0
+                    const statsResult = await execFileAsync('docker', [
+                        'stats', '--no-stream', '--format', '{{.MemUsage}}', containerName
+                    ], { timeout: 5000 }).catch(() => null);
+                    if (statsResult) {
+                        memoryUsedKb = this.parseMemoryUsage(statsResult.stdout);
+                    }
+                } catch {
+                    // Container already removed; default to 0
+                }
+
+                // Clean up the named container
+                await execFileAsync('docker', ['rm', '-f', containerName]).catch(() => {});
+
+                return { stdout, stderr, executionTimeMs, memoryUsedKb };
             }
 
         } catch (error: any) {
@@ -120,6 +158,25 @@ export const DockerService = {
             if (containerId) {
                 ContainerPoolService.replaceContainer(containerId, langKey);
             }
+        }
+    },
+
+    /**
+     * Parses Docker stats memory usage string (e.g., "12.5MiB / 256MiB") into KB.
+     */
+    parseMemoryUsage(statsOutput: string): number {
+        const match = String(statsOutput || '').trim().match(/^([\d.]+)\s*(B|KiB|MiB|GiB|kB|MB|GB)/i);
+        if (!match) return 0;
+
+        const value = parseFloat(match[1]);
+        const unit = match[2].toLowerCase();
+
+        switch (unit) {
+            case 'b': return Math.round(value / 1024);
+            case 'kib': case 'kb': return Math.round(value);
+            case 'mib': case 'mb': return Math.round(value * 1024);
+            case 'gib': case 'gb': return Math.round(value * 1024 * 1024);
+            default: return 0;
         }
     }
 };

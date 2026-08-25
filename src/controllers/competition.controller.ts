@@ -271,4 +271,39 @@ export async function getAdminParticipantDetail(req: Request, res: Response) {
     }
 }
 
-export const CompetitionController = { createCompetition, registerForCompetition, finishCompetition, getAllCompetitionsBasicInfo, getCompetitionProblemTitles, getCompetitionLeaderboard, logCheatingAttempt, getParticipantLogs, startProblemTimer, pauseProblemTimer, checkAdminAccess, getAdminParticipants, getAdminParticipantDetail };
+export async function getCompetitionAnalytics(req: Request, res: Response) {
+    try {
+        const competitionId = req.params.competitionId as string;
+        const authUser = (req as any).user;
+
+        const analytics = await CompetitionService.getCompetitionAnalytics(competitionId, authUser?.id);
+        return res.status(200).json({ success: true, data: analytics });
+    } catch (error: any) {
+        console.error('Get competition analytics error', error?.message ?? error);
+        if (error?.message === 'Unauthorized') return res.status(401).json({ success: false, message: error.message });
+        if (error?.message === 'Forbidden') return res.status(403).json({ success: false, message: 'You do not have admin rights.' });
+        return res.status(500).json({ success: false, message: 'Internal server error' });
+    }
+}
+
+export async function updateActivity(req: Request, res: Response) {
+    try {
+        const { competitionId, problemId } = req.params;
+        const { activity, code } = req.body;
+        const authUser = (req as any).user;
+
+        if (!activity || !['active', 'stuck', 'inactive'].includes(activity)) {
+            return res.status(400).json({ success: false, message: 'Invalid activity state' });
+        }
+
+        await CompetitionService.updateActivity(competitionId, problemId, authUser?.id, activity, code);
+        return res.status(200).json({ success: true, message: 'Activity updated' });
+    } catch (error: any) {
+        console.error('Update activity error', error?.message ?? error);
+        if (error?.message === 'Unauthorized') return res.status(401).json({ success: false, message: error.message });
+        if (error?.message === 'Participant or CompetitionProblem not found') return res.status(404).json({ success: false, message: error.message });
+        return res.status(500).json({ success: false, message: 'Internal server error' });
+    }
+}
+
+export const CompetitionController = { createCompetition, registerForCompetition, finishCompetition, getAllCompetitionsBasicInfo, getCompetitionProblemTitles, getCompetitionLeaderboard, logCheatingAttempt, getParticipantLogs, startProblemTimer, pauseProblemTimer, checkAdminAccess, getAdminParticipants, getAdminParticipantDetail, getCompetitionAnalytics, updateActivity };

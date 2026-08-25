@@ -361,5 +361,91 @@ export const CompetitionRepository = {
             email: participant.user.email,
             questions: logsWithCode
         };
+    },
+
+    async getCompetitionAnalytics(competitionId: string) {
+        const [totalParticipants, allLogs, completedParticipants] = await Promise.all([
+            prisma.competitionParticipant.count({
+                where: { competitionId }
+            }),
+            prisma.competitionLog.findMany({
+                where: {
+                    participant: { competitionId }
+                },
+                include: {
+                    participant: {
+                        include: {
+                            user: {
+                                select: { id: true, username: true, email: true }
+                            }
+                        }
+                    },
+                    problem: {
+                        include: {
+                            problem: {
+                                select: { id: true, title: true }
+                            }
+                        }
+                    }
+                }
+            }),
+
+            prisma.competitionParticipant.findMany({
+                where: {
+                    competitionId,
+                    finished: true
+                },
+                include: {
+                    user: {
+                        select: { id: true, username: true, email: true }
+                    }
+                }
+            })
+        ]);
+
+        // Group logs by problemId
+        const problemMap = new Map<string, { problemId: string, problemTitle: string, active: any[], stuck: any[], inactive: any[] }>();
+
+        for (const log of allLogs) {
+            const pid = log.problem.problemId;
+            const pTitle = log.problem.problem.title;
+
+            if (!problemMap.has(pid)) {
+                problemMap.set(pid, { problemId: pid, problemTitle: pTitle, active: [], stuck: [], inactive: [] });
+            }
+
+            const bucket = problemMap.get(pid)!;
+            
+            if (log.activity === 'active') {
+                bucket.active.push(log);
+            } else if (log.activity === 'stuck' && log.status !== 'Accepted' && log.status !== null) {
+                bucket.stuck.push(log);
+            } else {
+                bucket.inactive.push(log);
+            }
+        }
+
+        return {
+            totalParticipants,
+            problems: Array.from(problemMap.values()),
+            completed: completedParticipants
+        };
+    },
+
+    async updateActivity(participantId: string, competitionProblemId: string, activity: string, code?: string) {
+        const updateData: any = { activity };
+        if (code !== undefined) {
+            updateData.code = code;
+        }
+
+        return prisma.competitionLog.update({
+            where: {
+                competitionParticipantId_competitionProblemId: {
+                    competitionParticipantId: participantId,
+                    competitionProblemId
+                }
+            },
+            data: updateData
+        });
     }
 };

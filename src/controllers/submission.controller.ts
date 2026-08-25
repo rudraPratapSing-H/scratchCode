@@ -121,6 +121,8 @@ export const SubmissionController = {
                     id: true,
                     status: true,
                     errorMessage: true,
+                    executionTimeMs: true,
+                    memoryUsedKb: true,
                     testCasesPassed: true,
                     totalTestCases: true,
                     competitionId: true,
@@ -162,6 +164,8 @@ export const SubmissionController = {
                 status: submission.status,
                 testCasesPassed: submission.testCasesPassed,
                 totalTestCases: submission.totalTestCases,
+                executionTimeMs: submission.executionTimeMs,
+                memoryUsedKb: submission.memoryUsedKb,
                 details
             });
 

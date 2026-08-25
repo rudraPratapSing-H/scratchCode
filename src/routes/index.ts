@@ -35,8 +35,10 @@ export const setupRoutes = () => {
     router.get('/competitions/:competitionId/logs', requireAuth, CompetitionController.getParticipantLogs);
     router.post('/competitions/:competitionId/problems/:problemId/time/start', requireAuth, CompetitionController.startProblemTimer);
     router.post('/competitions/:competitionId/problems/:problemId/time/pause', requireAuth, CompetitionController.pauseProblemTimer);
+    router.post('/competitions/:competitionId/problems/:problemId/activity', requireAuth, CompetitionController.updateActivity);
     // admin routes
     router.get('/competitions/admin/check', requireAuth, CompetitionController.checkAdminAccess);
+    router.get('/competitions/:competitionId/admin/analytics', requireAuth, CompetitionController.getCompetitionAnalytics);
     router.get('/competitions/:competitionId/admin/participants', requireAuth, CompetitionController.getAdminParticipants);
     router.get('/competitions/:competitionId/admin/participants/:participantId/details', requireAuth, CompetitionController.getAdminParticipantDetail);
     // routes for dashboard type shi    

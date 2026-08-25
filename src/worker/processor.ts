@@ -38,7 +38,7 @@ export const processSubmissionJob = async (job: Job) => {
             parameterNames
         );
 
-        const { stdout } = await DockerService.executeContainer(
+        const { stdout, executionTimeMs, memoryUsedKb } = await DockerService.executeContainer(
             'submission',
             submission.language,
             fullCodeToRun,
@@ -65,6 +65,8 @@ export const processSubmissionJob = async (job: Job) => {
         await WorkerService.updateStatus(submissionId, finalStatus, {
             testCasesPassed: passedCount,
             totalTestCases: safeTestCases.length,
+            executionTimeMs,
+            memoryUsedKb,
             errorMessage: shouldPersistDetails && allDetails.length > 0 ? JSON.stringify(allDetails) : null
         });
 
